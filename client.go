@@ -7,7 +7,6 @@ import (
 	"github.com/adamhicks/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
-	"github.com/luno/jettison/log"
 	"io"
 	"net/http"
 	"time"
@@ -157,7 +156,7 @@ func (c *Client) Deliver(ctx context.Context) error {
 			close(call.Done)
 		case <-t.C:
 			if err := c.send(ctx, &agg); err != nil {
-				log.Error(ctx, err)
+				return err
 			}
 		case ch := <-c.flushChan:
 			ch <- c.send(ctx, &agg)
@@ -184,14 +183,15 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 	if len(*a) == 0 {
 		return nil
 	}
+	defer a.Reset()
 
 	start := time.Now()
 	ts := start.Unix()
 
-	var req api.SubmitMetrics
+	var sub api.SubmitMetrics
 
 	for method, calls := range *a {
-		req.Metrics = append(req.Metrics, api.Metrics{
+		sub.Metrics = append(sub.Metrics, api.Metrics{
 			Source:       method.Source,
 			SourceRegion: method.SourceRegion,
 			Target:       method.Target,
@@ -203,11 +203,17 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 			CountBad:     calls[2],
 		})
 	}
-	b, err := json.Marshal(req)
+	b, err := json.Marshal(sub)
 	if err != nil {
 		return err
 	}
-	resp, err := c.cli.Post(c.baseURL+"/api/submit", "application/json", bytes.NewReader(b))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/submit", bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.cli.Do(req)
 	if err != nil {
 		c.metrics.SubmissionErrors.Inc()
 		return err
@@ -219,8 +225,6 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 		}
 		return errors.New("failed to submit", j.MKV{"resp": string(b)})
 	}
-	a.Reset()
-	log.Info(ctx, "submitted metrics to server")
 	c.metrics.SubmissionLatency.Observe(time.Since(start).Seconds())
 	return nil
 }
