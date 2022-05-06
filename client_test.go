@@ -12,7 +12,7 @@ import (
 )
 
 type state struct {
-	Log *ops.TrafficLog
+	Log ops.TrafficStats
 }
 
 func (s state) TrafficStats() ops.TrafficStats {
@@ -20,9 +20,10 @@ func (s state) TrafficStats() ops.TrafficStats {
 }
 
 func TestClientSubmitsMetrics(t *testing.T) {
-	s := state{Log: ops.NewTrafficLog()}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
+
+	s := state{Log: ops.NewLoader(ctx, ops.NewMemDB())}
 
 	srv := httptest.NewServer(handlers.CreateRouter(ctx, s))
 	t.Cleanup(srv.Close)
@@ -31,11 +32,6 @@ func TestClientSubmitsMetrics(t *testing.T) {
 		WithBaseURL(srv.URL),
 		WithHTTPClient(srv.Client()),
 	)
-
-	go func() {
-		err := s.Log.ProcessMetrics(ctx)
-		jtest.Assert(t, context.Canceled, err)
-	}()
 
 	go func() {
 		err := c.Deliver(ctx)

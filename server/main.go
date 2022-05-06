@@ -5,6 +5,7 @@ import (
 	"flag"
 	"github.com/adamhicks/gridlock/server/handlers"
 	"github.com/adamhicks/gridlock/server/ops"
+	"github.com/gomodule/redigo/redis"
 	"github.com/julienschmidt/httprouter"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
@@ -18,7 +19,7 @@ import (
 )
 
 type state struct {
-	Log *ops.TrafficLog
+	Log ops.TrafficStats
 }
 
 func (s state) TrafficStats() ops.TrafficStats {
@@ -31,14 +32,11 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	s := state{Log: ops.NewTrafficLog()}
-
-	go func() {
-		err := s.Log.ProcessMetrics(ctx)
-		if err != nil {
-			log.Error(ctx, err)
-		}
-	}()
+	rawConn, err := redis.DialURLContext(ctx, "redis://127.0.0.1:6379")
+	if err != nil {
+		panic(err)
+	}
+	s := state{Log: ops.NewLoader(ctx, ops.RedisDB{RedisConn: rawConn})}
 
 	runWebServer(ctx, handlers.CreateRouter(ctx, s), 80)
 }
