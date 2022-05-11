@@ -7,6 +7,7 @@ import (
 	"github.com/adamhicks/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
+	"github.com/luno/jettison/log"
 	"io"
 	"net/http"
 	"time"
@@ -225,6 +226,7 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 		}
 		return errors.New("failed to submit", j.MKV{"resp": string(b)})
 	}
+	log.Info(ctx, "sent some metrics")
 	c.metrics.SubmissionLatency.Observe(time.Since(start).Seconds())
 	return nil
 }

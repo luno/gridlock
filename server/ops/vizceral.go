@@ -30,7 +30,6 @@ func CompileVizceralGraph(t Traffic) vizceral.Node {
 
 	for name, region := range t.Regions {
 		rn := createNode(name, vizceral.RendererRegion, ts)
-		rn.MaxVolume = 50_000
 
 		for nodeName, node := range region.Nodes {
 			n := createNode(nodeName, vizceral.RendererFocusedChild, ts)
@@ -45,6 +44,7 @@ func CompileVizceralGraph(t Traffic) vizceral.Node {
 						Danger:  stats.Bad,
 					},
 				})
+				rn.MaxVolume += float64(stats.Good + stats.Warning + stats.Bad)
 			}
 			rn.Nodes = append(rn.Nodes, n)
 		}
