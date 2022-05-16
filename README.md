@@ -1,3 +1,8 @@
+## Prerequisites
+
+The Gridlock server needs a redis database in order to run.
+This database must be dedicated solely for this application to prevent key clash.
+
 ## Running the app locally for development
 
 To run the backend api:
@@ -22,6 +27,6 @@ go run ./test/cmd
 To build and run the docker image
 ```
 docker build . -t gridlock
-docker run -p 80:80 gridlock
+docker run -p 80:80 gridlock --redis=redis://host.docker.internal:6379
 ```
 Access the app on `localhost`
