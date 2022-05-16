@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { Alert } from 'react-bootstrap';
+import {Alert} from 'react-bootstrap';
 import React from 'react';
 import TWEEN from '@tweenjs/tween.js'; // Start TWEEN updates for sparklines and loading screen fading out
 import Vizceral from 'vizceral-react';
@@ -136,13 +136,8 @@ class TrafficFlow extends React.Component {
   checkInitialRoute () {
     // Check the location bar for any direct routing information
     const pathArray = window.location.pathname.split('/');
-    const currentView = [];
-    if (pathArray[1]) {
-      currentView.push(pathArray[1]);
-      if (pathArray[2]) {
-        currentView.push(pathArray[2]);
-      }
-    }
+
+    const currentView = pathArray.filter(comp => comp !== "" && comp !== "gridlock");
     const parsedQuery = queryString.parse(window.location.search);
 
     this.setState({ currentView: currentView, objectToHighlight: parsedQuery.highlighted });
@@ -150,7 +145,7 @@ class TrafficFlow extends React.Component {
 
   beginSampleData () {
     this.traffic = { nodes: [], connections: [] };
-    request.get('/api/graph')
+    request.get('/gridlock/api/graph')
       .set('Accept', 'application/json')
       .end((err, res) => {
         if (res && res.status === 200) {
@@ -178,7 +173,7 @@ class TrafficFlow extends React.Component {
         || this.state.currentView[1] !== nextState.currentView[1]
         || this.state.highlightedObject !== nextState.highlightedObject) {
       const titleArray = (nextState.currentView || []).slice(0);
-      titleArray.unshift('Vizceral');
+      titleArray.unshift('Gridlock');
       document.title = titleArray.join(' / ');
 
       if (this.poppedState) {
@@ -187,7 +182,7 @@ class TrafficFlow extends React.Component {
         const highlightedObjectName = nextState.highlightedObject && nextState.highlightedObject.getName();
         const state = {
           title: document.title,
-          url: `/${nextState.currentView.join('/')}${highlightedObjectName ? `?highlighted=${highlightedObjectName}` : ''}`,
+          url: `/gridlock/${nextState.currentView.join('/')}${highlightedObjectName ? `?highlighted=${highlightedObjectName}` : ''}`,
           selected: nextState.currentView,
           highlighted: highlightedObjectName
         };
@@ -219,8 +214,7 @@ class TrafficFlow extends React.Component {
       newState.objectToHighlight = undefined;
     } else if (newState.currentView.length > 0) {
       // zooming out
-      const nodeName = newState.currentView.pop();
-      newState.objectToHighlight = nodeName;
+      newState.objectToHighlight = newState.currentView.pop();
     }
 
     this.setState(newState);

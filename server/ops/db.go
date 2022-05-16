@@ -2,6 +2,7 @@ package ops
 
 import (
 	"context"
+	"flag"
 	"github.com/adamhicks/gridlock/server/db"
 	"github.com/gomodule/redigo/redis"
 	"time"
@@ -15,8 +16,29 @@ type NodeDB interface {
 	StoreNodeStat(ctx context.Context, k db.NodeStatKey, ttl time.Duration, count int64) error
 }
 
+var redisAddr = flag.String("redis", "redis://127.0.0.1:6379", "Address to connect to the redis server")
+
 type RedisDB struct {
-	RedisConn redis.Conn
+	Pool *redis.Pool
+}
+
+func NewRedis() RedisDB {
+	return RedisDB{Pool: &redis.Pool{
+		DialContext: func(ctx context.Context) (redis.Conn, error) {
+			return redis.DialURLContext(ctx, *redisAddr)
+		},
+		TestOnBorrow: func(c redis.Conn, t time.Time) error {
+			if time.Since(t) < time.Minute {
+				return nil
+			}
+			_, err := c.Do("PING")
+			return err
+		},
+		MaxIdle:     3,
+		MaxActive:   10,
+		IdleTimeout: time.Minute,
+		Wait:        true,
+	}}
 }
 
 func (r RedisDB) WaitForChanges() chan struct{} {
@@ -24,15 +46,21 @@ func (r RedisDB) WaitForChanges() chan struct{} {
 }
 
 func (r RedisDB) GetNodeStatCount(ctx context.Context, key db.NodeStatKey) (int64, error) {
-	return db.GetNodeStatCount(ctx, r.RedisConn, key)
+	c := r.Pool.Get()
+	defer c.Close()
+	return db.GetNodeStatCount(ctx, c, key)
 }
 
 func (r RedisDB) ScanAllNodeStatKeys(ctx context.Context, f db.HandleNodeStatFunc) error {
-	return db.ScanAllNodeStatKeys(ctx, r.RedisConn, f)
+	c := r.Pool.Get()
+	defer c.Close()
+	return db.ScanAllNodeStatKeys(ctx, c, f)
 }
 
 func (r RedisDB) StoreNodeStat(ctx context.Context, k db.NodeStatKey, ttl time.Duration, count int64) error {
-	return db.StoreNodeStat(ctx, r.RedisConn, k, ttl, count)
+	c := r.Pool.Get()
+	defer c.Close()
+	return db.StoreNodeStat(ctx, c, k, ttl, count)
 }
 
 type MemDB struct {

@@ -11,4 +11,4 @@ RUN npm install && npm run build
 FROM alpine:latest
 COPY --from=server /build/server ./
 COPY --from=webapp /build/ webapp/
-CMD ./server --web_build=./webapp
+ENTRYPOINT ["./server", "--web_build=./webapp"]

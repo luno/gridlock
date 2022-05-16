@@ -11,7 +11,11 @@ import (
 
 var webBuild = flag.String("web_build", "", "`build` folder for web app")
 
-func createWebApp(ctx context.Context, r *httprouter.Router) {
+func serveIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	http.ServeFile(w, r, *webBuild+"/index.html")
+}
+
+func createWebApp(_ context.Context, r Router) {
 	if *webBuild == "" {
 		return
 	}
@@ -33,9 +37,7 @@ func createWebApp(ctx context.Context, r *httprouter.Router) {
 			return nil
 		},
 	)
-	r.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		http.ServeFile(w, r, *webBuild+"/index.html")
-	})
+	r.GET("/", serveIndex)
 	if err != nil {
 		panic(err)
 	}

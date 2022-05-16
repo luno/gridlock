@@ -17,7 +17,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	c := gridlock.NewClient(gridlock.WithBaseURL("http://localhost"))
+	c := gridlock.NewClient(gridlock.WithBaseURL("http://localhost/gridlock"))
 	go func() {
 		err := c.Deliver(ctx)
 		if err != nil {

@@ -7,20 +7,24 @@ import reportWebVitals from './reportWebVitals';
 
 import 'bootstrap';
 import 'bootstrap/dist/css/bootstrap.css';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { createBrowserHistory } from 'history';
 
 import WebFont from 'webfontloader';
 
+export const history = createBrowserHistory({
+  basename: process.env.PUBLIC_URL
+});
+
 function fontsActive () {
   ReactDOM.render(
-    <App />,
+      <BrowserRouter history={history} basename={'gridlock'}>
+          <Routes>
+              <Route path="/" element={<App />}></Route>
+          </Routes>
+      </BrowserRouter>,
     document.getElementById('root')
   );
-  // ReactDOM.render(
-  //   <React.StrictMode>
-  //     <App />
-  //   </React.StrictMode>,
-  //   document.getElementById('root')
-  // );
 }
 
 WebFont.load({
