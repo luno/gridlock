@@ -5,6 +5,7 @@ import (
 	"flag"
 	"github.com/adamhicks/gridlock/server/db"
 	"github.com/gomodule/redigo/redis"
+	"github.com/luno/jettison/errors"
 	"time"
 )
 
@@ -22,7 +23,10 @@ type RedisDB struct {
 	Pool *redis.Pool
 }
 
-func NewRedis() RedisDB {
+func NewRedis() (RedisDB, error) {
+	if *redisAddr == "" {
+		return RedisDB{}, errors.New("redis not configured")
+	}
 	return RedisDB{Pool: &redis.Pool{
 		DialContext: func(ctx context.Context) (redis.Conn, error) {
 			return redis.DialURLContext(ctx, *redisAddr)
@@ -38,7 +42,7 @@ func NewRedis() RedisDB {
 		MaxActive:   10,
 		IdleTimeout: time.Minute,
 		Wait:        true,
-	}}
+	}}, nil
 }
 
 func (r RedisDB) WaitForChanges() chan struct{} {

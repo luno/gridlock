@@ -13,9 +13,8 @@ import (
 
 func TestAgainstLocal(t *testing.T) {
 	ctx := context.Background()
-	rawConn, err := redis.DialURLContext(ctx, "redis://127.0.0.1:6379")
+	conn, err := redis.DialURLContext(ctx, "redis://127.0.0.1:6379")
 	jtest.RequireNil(t, err)
-	conn := rawConn.(redis.ConnWithContext)
 
 	now := time.Now()
 	ttl := 5 * time.Minute

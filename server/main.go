@@ -31,7 +31,14 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	s := state{Log: ops.NewLoader(ctx, ops.NewRedis())}
+	var s state
+	red, err := ops.NewRedis()
+	if err != nil {
+		log.Error(ctx, errors.Wrap(err, "failed to connect to redis, falling back to memory db"))
+		s.Log = ops.NewLoader(ctx, ops.NewMemDB())
+	} else {
+		s.Log = ops.NewLoader(ctx, red)
+	}
 
 	runWebServer(ctx, handlers.CreateRouter(ctx, s), 80)
 }
