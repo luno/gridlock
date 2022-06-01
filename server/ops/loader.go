@@ -2,8 +2,8 @@ package ops
 
 import (
 	"context"
-	"github.com/adamhicks/gridlock/api"
-	"github.com/adamhicks/gridlock/server/db"
+	"github.com/luno/gridlock/api"
+	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/log"
 	"sync"

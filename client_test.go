@@ -2,9 +2,9 @@ package gridlock
 
 import (
 	"context"
-	"github.com/adamhicks/gridlock/api"
-	"github.com/adamhicks/gridlock/server/handlers"
-	"github.com/adamhicks/gridlock/server/ops"
+	"github.com/luno/gridlock/api"
+	"github.com/luno/gridlock/server/handlers"
+	"github.com/luno/gridlock/server/ops"
 	"github.com/luno/jettison/jtest"
 	"github.com/stretchr/testify/assert"
 	"net/http/httptest"

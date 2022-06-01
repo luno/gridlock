@@ -2,7 +2,7 @@ package gridlock
 
 import (
 	"context"
-	"github.com/adamhicks/gridlock/api"
+	"github.com/luno/gridlock/api"
 	"google.golang.org/grpc"
 	"strings"
 )

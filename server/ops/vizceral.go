@@ -1,7 +1,7 @@
 package ops
 
 import (
-	"github.com/adamhicks/gridlock/api/vizceral"
+	"github.com/luno/gridlock/api/vizceral"
 )
 
 func createNode(name string, rend vizceral.NodeRenderer, ts int64) vizceral.Node {

@@ -2,7 +2,7 @@ FROM golang:1.18-alpine as server
 WORKDIR /
 COPY ./ ./
 RUN mkdir -p build
-RUN apk add git && go build -o build/ github.com/adamhicks/gridlock/server
+RUN apk add git && go build -o build/ github.com/luno/gridlock/server
 
 FROM node:16-alpine as webapp
 COPY web .

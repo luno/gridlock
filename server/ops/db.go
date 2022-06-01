@@ -3,8 +3,8 @@ package ops
 import (
 	"context"
 	"flag"
-	"github.com/adamhicks/gridlock/server/db"
 	"github.com/gomodule/redigo/redis"
+	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/errors"
 	"time"
 )

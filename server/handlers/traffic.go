@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/adamhicks/gridlock/api"
-	"github.com/adamhicks/gridlock/server/ops"
 	"github.com/julienschmidt/httprouter"
+	"github.com/luno/gridlock/api"
+	"github.com/luno/gridlock/server/ops"
 	"github.com/luno/jettison/log"
 	"net/http"
 )

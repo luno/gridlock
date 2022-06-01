@@ -1,7 +1,7 @@
 package ops
 
 import (
-	"github.com/adamhicks/gridlock/api"
+	"github.com/luno/gridlock/api"
 	"sort"
 )
 

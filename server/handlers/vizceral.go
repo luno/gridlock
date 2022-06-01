@@ -3,8 +3,8 @@ package handlers
 import (
 	_ "embed"
 	"encoding/json"
-	"github.com/adamhicks/gridlock/server/ops"
 	"github.com/julienschmidt/httprouter"
+	"github.com/luno/gridlock/server/ops"
 	"github.com/luno/jettison/log"
 	"net/http"
 )

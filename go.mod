@@ -1,4 +1,4 @@
-module github.com/adamhicks/gridlock
+module github.com/luno/gridlock
 
 go 1.18
 

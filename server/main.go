@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/adamhicks/gridlock/server/handlers"
-	"github.com/adamhicks/gridlock/server/ops"
 	"github.com/julienschmidt/httprouter"
+	"github.com/luno/gridlock/server/handlers"
+	"github.com/luno/gridlock/server/ops"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
 	"github.com/luno/jettison/log"
