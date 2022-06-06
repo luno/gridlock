@@ -182,6 +182,21 @@ func (c *Client) Flush(ctx context.Context) error {
 	}
 }
 
+func (c *Client) do(req *http.Request) (*http.Response, error) {
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusOK {
+		return resp, nil
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read response")
+	}
+	return nil, errors.New("failed to submit", j.MKV{"resp": string(b)})
+}
+
 func (c *Client) send(ctx context.Context, a *aggregate) error {
 	if len(*a) == 0 {
 		return nil
@@ -217,17 +232,10 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.cli.Do(req)
-	if err != nil {
+
+	if _, err := c.do(req); err != nil {
 		c.metrics.SubmissionErrors.Inc()
 		return err
-	} else if resp.StatusCode != http.StatusOK {
-		c.metrics.SubmissionErrors.Inc()
-		b, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return errors.Wrap(err, "failed to read response")
-		}
-		return errors.New("failed to submit", j.MKV{"resp": string(b)})
 	}
 	c.metrics.SubmissionLatency.Observe(time.Since(start).Seconds())
 	c.metrics.SubmittedCalls.Add(float64(total))
@@ -239,17 +247,15 @@ func (c *Client) GetTraffic(ctx context.Context) ([]api.Traffic, error) {
 	if err != nil {
 		return nil, err
 	}
-	httpResp, err := c.cli.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	b, err := io.ReadAll(httpResp.Body)
+
+	httpResp, err := c.do(req)
 	if err != nil {
 		return nil, err
 	}
 
-	if httpResp.StatusCode != http.StatusOK {
-		return nil, errors.New(string(b))
+	b, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, err
 	}
 
 	var resp api.GetTraffic
