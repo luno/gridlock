@@ -6,6 +6,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/errors"
+	"sync"
 	"time"
 )
 
@@ -68,23 +69,32 @@ func (r RedisDB) StoreNodeStat(ctx context.Context, k db.NodeStatKey, ttl time.D
 }
 
 type MemDB struct {
+	mu    sync.RWMutex
 	Nodes map[db.NodeStatKey]int64
 	c     chan struct{}
 }
 
-func NewMemDB() MemDB {
-	return MemDB{
+func NewMemDB() *MemDB {
+	return &MemDB{
 		Nodes: make(map[db.NodeStatKey]int64),
 		c:     make(chan struct{}),
 	}
 }
 
-func (m MemDB) GetNodeStatCount(_ context.Context, key db.NodeStatKey) (int64, error) {
+func (m *MemDB) GetNodeStatCount(_ context.Context, key db.NodeStatKey) (int64, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.Nodes[key], nil
 }
 
-func (m MemDB) ScanAllNodeStatKeys(ctx context.Context, f db.HandleNodeStatFunc) error {
-	for key := range m.Nodes {
+func (m *MemDB) ScanAllNodeStatKeys(ctx context.Context, f db.HandleNodeStatFunc) error {
+	m.mu.RLock()
+	nodesCopy := make(map[db.NodeStatKey]int64)
+	for key, val := range m.Nodes {
+		nodesCopy[key] = val
+	}
+	m.mu.RUnlock()
+	for key := range nodesCopy {
 		if err := f(ctx, key); err != nil {
 			return err
 		}
@@ -92,13 +102,15 @@ func (m MemDB) ScanAllNodeStatKeys(ctx context.Context, f db.HandleNodeStatFunc)
 	return nil
 }
 
-func (m MemDB) StoreNodeStat(_ context.Context, k db.NodeStatKey, _ time.Duration, count int64) error {
+func (m *MemDB) StoreNodeStat(_ context.Context, k db.NodeStatKey, _ time.Duration, count int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.Nodes[k] = count
 	m.c <- struct{}{}
 	return nil
 }
 
-func (m MemDB) WaitForChanges() chan struct{} {
+func (m *MemDB) WaitForChanges() chan struct{} {
 	return m.c
 }
 
