@@ -7,6 +7,7 @@ import (
 	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
+	"github.com/luno/jettison/log"
 	"io"
 	"net/http"
 	"time"
@@ -38,6 +39,7 @@ type Client struct {
 
 	flushChan   chan chan error
 	flushPeriod time.Duration
+	reqTimeout  time.Duration
 
 	q chan incCall
 }
@@ -97,6 +99,7 @@ func NewClient(opts ...ClientOption) *Client {
 		flushChan:   make(chan chan error, 1),
 		flushPeriod: 20 * time.Second,
 		q:           make(chan incCall, 1000),
+		reqTimeout:  30 * time.Second,
 	}
 	for _, opt := range opts {
 		opt(ret)
@@ -182,7 +185,17 @@ func (c *Client) Flush(ctx context.Context) error {
 	}
 }
 
-func (c *Client) do(req *http.Request) (*http.Response, error) {
+func (c *Client) do(ctx context.Context, method, url string, body io.Reader) (*http.Response, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.reqTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		return nil, err
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	resp, err := c.cli.Do(req)
 	if err != nil {
 		return nil, err
@@ -198,6 +211,7 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 }
 
 func (c *Client) send(ctx context.Context, a *aggregate) error {
+	log.Info(ctx, "sending metrics", j.KV("keys", len(*a)))
 	if len(*a) == 0 {
 		return nil
 	}
@@ -227,13 +241,8 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/submit", bytes.NewReader(b))
+	_, err = c.do(ctx, http.MethodPost, c.baseURL+"/api/submit", bytes.NewReader(b))
 	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	if _, err := c.do(req); err != nil {
 		c.metrics.SubmissionErrors.Inc()
 		return err
 	}
@@ -243,12 +252,7 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 }
 
 func (c *Client) GetTraffic(ctx context.Context) ([]api.Traffic, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/traffic", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	httpResp, err := c.do(req)
+	httpResp, err := c.do(ctx, http.MethodGet, c.baseURL+"/api/traffic", nil)
 	if err != nil {
 		return nil, err
 	}
