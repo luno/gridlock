@@ -16,6 +16,7 @@ type CallAggregate [3]int64
 
 type Counter interface {
 	Inc()
+	Add(v float64)
 }
 
 type Measure interface {
@@ -25,6 +26,7 @@ type Measure interface {
 type noopMetric struct{}
 
 func (noopMetric) Inc()            {}
+func (noopMetric) Add(float64)     {}
 func (noopMetric) Observe(float64) {}
 
 type Client struct {
@@ -63,6 +65,7 @@ func WithDefaultMethod(m Method) ClientOption {
 type Metrics struct {
 	SuccessfulCalls   Counter
 	DroppedCalls      Counter
+	SubmittedCalls    Counter
 	SubmissionLatency Measure
 	SubmissionErrors  Counter
 }
@@ -189,7 +192,7 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 	ts := start.Unix()
 
 	var sub api.SubmitMetrics
-
+	var total int64
 	for method, calls := range *a {
 		sub.Metrics = append(sub.Metrics, api.Metrics{
 			Source:       method.Source,
@@ -202,6 +205,7 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 			CountWarning: calls[1],
 			CountBad:     calls[2],
 		})
+		total += calls[0] + calls[1] + calls[2]
 	}
 	b, err := json.Marshal(sub)
 	if err != nil {
@@ -226,6 +230,7 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 		return errors.New("failed to submit", j.MKV{"resp": string(b)})
 	}
 	c.metrics.SubmissionLatency.Observe(time.Since(start).Seconds())
+	c.metrics.SubmittedCalls.Add(float64(total))
 	return nil
 }
 
