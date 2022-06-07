@@ -7,7 +7,6 @@ import (
 	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
-	"github.com/luno/jettison/log"
 	"io"
 	"net/http"
 	"time"
@@ -78,6 +77,9 @@ func (m *Metrics) defaultUnused() {
 	}
 	if m.DroppedCalls == nil {
 		m.DroppedCalls = noopMetric{}
+	}
+	if m.SubmittedCalls == nil {
+		m.SubmittedCalls = noopMetric{}
 	}
 	if m.SubmissionLatency == nil {
 		m.SubmissionLatency = noopMetric{}
@@ -211,7 +213,6 @@ func (c *Client) do(ctx context.Context, method, url string, body io.Reader) (*h
 }
 
 func (c *Client) send(ctx context.Context, a *aggregate) error {
-	log.Info(ctx, "sending metrics", j.KV("keys", len(*a)))
 	if len(*a) == 0 {
 		return nil
 	}
