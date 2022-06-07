@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"github.com/julienschmidt/httprouter"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"strings"
 )
@@ -48,5 +49,11 @@ func CreateRouter(ctx context.Context, d Deps) *httprouter.Router {
 			http.Redirect(w, r, "/gridlock", http.StatusTemporaryRedirect)
 		}
 	})
+	return r
+}
+
+func CreateDebugRouter() *httprouter.Router {
+	r := httprouter.New()
+	r.Handler(http.MethodGet, "/debug/metrics", promhttp.Handler())
 	return r
 }
