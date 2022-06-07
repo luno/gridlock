@@ -92,7 +92,7 @@ type MemDB struct {
 func NewMemDB() *MemDB {
 	return &MemDB{
 		Nodes: make(map[db.NodeStatKey]int64),
-		c:     make(chan struct{}),
+		c:     make(chan struct{}, 1),
 	}
 }
 
@@ -121,7 +121,11 @@ func (m *MemDB) StoreNodeStat(_ context.Context, k db.NodeStatKey, _ time.Durati
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.Nodes[k] = count
-	m.c <- struct{}{}
+
+	select {
+	case m.c <- struct{}{}:
+	default:
+	}
 	return nil
 }
 
