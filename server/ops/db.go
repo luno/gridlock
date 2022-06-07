@@ -19,6 +19,8 @@ type NodeDB interface {
 }
 
 var redisAddr = flag.String("redis", "redis://127.0.0.1:6379", "Address to connect to the redis server")
+var redisUser = flag.String("redis_user", "", "User for authentication to the redis server, requires password")
+var redisPassword = flag.String("redis_password", "", "Password for authentication to the redis server")
 
 type RedisDB struct {
 	Pool *redis.Pool
@@ -28,9 +30,21 @@ func NewRedis() (RedisDB, error) {
 	if *redisAddr == "" {
 		return RedisDB{}, errors.New("redis not configured")
 	}
+
+	var do []redis.DialOption
+	if *redisUser != "" || *redisPassword != "" {
+		if *redisUser == "" || *redisPassword == "" {
+			return RedisDB{}, errors.New("redis username/password misconfiguration")
+		}
+		do = []redis.DialOption{
+			redis.DialUsername(*redisUser),
+			redis.DialPassword(*redisPassword),
+		}
+	}
+
 	return RedisDB{Pool: &redis.Pool{
 		DialContext: func(ctx context.Context) (redis.Conn, error) {
-			return redis.DialURLContext(ctx, *redisAddr)
+			return redis.DialURLContext(ctx, *redisAddr, do...)
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 			if time.Since(t) < time.Minute {
