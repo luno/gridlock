@@ -6,6 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Router interface {
@@ -23,11 +24,21 @@ func SubRouter(r Router, basePath string) Router {
 }
 
 func (r subRouter) GET(path string, handle httprouter.Handle) {
-	r.r.GET(r.base+path, handle)
+	p := r.base + path
+	r.r.GET(p, wrap(p, handle))
 }
 
 func (r subRouter) POST(path string, handle httprouter.Handle) {
-	r.r.POST(r.base+path, handle)
+	p := r.base + path
+	r.r.POST(p, wrap(p, handle))
+}
+
+func wrap(path string, handle httprouter.Handle) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		t0 := time.Now()
+		handle(w, r, p)
+		httpHandle.WithLabelValues(path).Observe(time.Since(t0).Seconds())
+	}
 }
 
 func CreateRouter(ctx context.Context, d Deps) *httprouter.Router {
