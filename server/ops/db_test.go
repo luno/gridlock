@@ -1,9 +1,9 @@
-package db
+package ops
 
 import (
 	"context"
 	"fmt"
-	"github.com/gomodule/redigo/redis"
+	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/jtest"
 	"math/rand"
 	"strconv"
@@ -12,8 +12,10 @@ import (
 )
 
 func TestAgainstLocal(t *testing.T) {
+	t.Skip("for testing against a running redis server")
 	ctx := context.Background()
-	conn, err := redis.DialURLContext(ctx, "redis://127.0.0.1:6379")
+
+	r, err := NewRedis(ctx)
 	jtest.RequireNil(t, err)
 
 	now := time.Now()
@@ -23,26 +25,26 @@ func TestAgainstLocal(t *testing.T) {
 		src := "client-" + strconv.Itoa(i)
 		tgt := "server-" + strconv.Itoa(i)
 
-		key := NodeStatKey{
+		key := db.NodeStatKey{
 			SourceRegion: "us-west-1", Source: src,
 			TargetRegion: "us-west-1", Target: tgt,
-			Bucket: GetBucket(now), Level: Good,
+			Bucket: db.GetBucket(now), Level: db.Good,
 		}
 
-		err = StoreNodeStat(ctx, conn, key, ttl, rand.Int63n(100_000))
+		err = r.StoreNodeStat(ctx, key, ttl, rand.Int63n(100_000))
 		jtest.RequireNil(t, err)
 
-		key.Level = Warning
-		err = StoreNodeStat(ctx, conn, key, ttl, rand.Int63n(1_000))
+		key.Level = db.Warning
+		err = r.StoreNodeStat(ctx, key, ttl, rand.Int63n(1_000))
 		jtest.RequireNil(t, err)
 
-		key.Level = Bad
-		err = StoreNodeStat(ctx, conn, key, ttl, rand.Int63n(100))
+		key.Level = db.Bad
+		err = r.StoreNodeStat(ctx, key, ttl, rand.Int63n(100))
 		jtest.RequireNil(t, err)
 	}
 
-	err = ScanAllNodeStatKeys(ctx, conn, func(ctx context.Context, key NodeStatKey) error {
-		val, err := GetNodeStatCount(ctx, conn, key)
+	err = r.ScanAllNodeStatKeys(ctx, func(ctx context.Context, key db.NodeStatKey) error {
+		val, err := r.GetNodeStatCount(ctx, key)
 		if err != nil {
 			return err
 		}

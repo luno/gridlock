@@ -80,14 +80,20 @@ func (r RedisDB) GetNodeStatCount(ctx context.Context, key db.NodeStatKey) (int6
 }
 
 func (r RedisDB) ScanAllNodeStatKeys(ctx context.Context, f db.HandleNodeStatFunc) error {
-	c, err := r.Pool.GetContext(ctx)
-	if err != nil {
-		return err
+	cur := redisCursor{Pool: r.Pool}
+	for cur.More() {
+		keys, err := cur.LoadSomeKeys(ctx)
+		if err != nil {
+			return err
+		}
+		for _, key := range keys {
+			err := f(ctx, key)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	defer func(c redis.Conn) {
-		_ = c.Close()
-	}(c)
-	return db.ScanAllNodeStatKeys(ctx, c, f)
+	return nil
 }
 
 func (r RedisDB) StoreNodeStat(ctx context.Context, k db.NodeStatKey, ttl time.Duration, count int64) error {
@@ -99,6 +105,34 @@ func (r RedisDB) StoreNodeStat(ctx context.Context, k db.NodeStatKey, ttl time.D
 		_ = c.Close()
 	}(c)
 	return db.StoreNodeStat(ctx, c, k, ttl, count)
+}
+
+type redisCursor struct {
+	Pool    *redis.Pool
+	Cursor  int64
+	Started bool
+}
+
+func (c *redisCursor) LoadSomeKeys(ctx context.Context) ([]db.NodeStatKey, error) {
+	conn, err := c.Pool.GetContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
+
+	keys, next, err := db.LoadSomeKeys(ctx, conn, c.Cursor)
+	if err != nil {
+		return nil, err
+	}
+	c.Cursor = next
+	c.Started = true
+	return keys, nil
+}
+
+func (c redisCursor) More() bool {
+	return !c.Started || c.Cursor != 0
 }
 
 type MemDB struct {

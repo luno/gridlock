@@ -5,6 +5,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
+	"github.com/luno/jettison/log"
 	"strconv"
 	"strings"
 	"time"
@@ -114,29 +115,21 @@ func StoreNodeStat(ctx context.Context, conn redis.Conn,
 
 type HandleNodeStatFunc func(context.Context, NodeStatKey) error
 
-func ScanAllNodeStatKeys(ctx context.Context, conn redis.Conn, f HandleNodeStatFunc) error {
-	var cursor int64
-	for {
-		next, keys, err := scanSomeKeys(ctx, conn, cursor)
-		if err != nil {
-			return err
-		}
-		for _, k := range keys {
-			key, err := keyFromRedis(k)
-			if err != nil {
-				continue
-			}
-			err = f(ctx, key)
-			if err != nil {
-				return err
-			}
-		}
-		if next == 0 {
-			break
-		}
-		cursor = next
+func LoadSomeKeys(ctx context.Context, conn redis.Conn, cursor int64) ([]NodeStatKey, int64, error) {
+	next, keys, err := scanSomeKeys(ctx, conn, cursor)
+	if err != nil {
+		return nil, 0, err
 	}
-	return nil
+	ret := make([]NodeStatKey, 0, len(keys))
+	for _, k := range keys {
+		key, err := keyFromRedis(k)
+		if err != nil {
+			log.Info(ctx, "failed to load key", j.KV("key", k), log.WithError(err))
+			continue
+		}
+		ret = append(ret, key)
+	}
+	return ret, next, nil
 }
 
 func scanSomeKeys(ctx context.Context, conn redis.Conn, cursor int64) (int64, []string, error) {
