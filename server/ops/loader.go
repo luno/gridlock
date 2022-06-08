@@ -5,6 +5,7 @@ import (
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/errors"
+	"github.com/luno/jettison/j"
 	"github.com/luno/jettison/log"
 	"sync"
 	"time"
@@ -92,6 +93,7 @@ func (l *Loader) refreshTraffic(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	log.Info(ctx, "loaded keys from database", j.KV("count", len(nodes)))
 
 	l.tMu.Lock()
 	defer l.tMu.Unlock()

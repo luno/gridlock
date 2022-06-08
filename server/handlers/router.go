@@ -5,6 +5,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
+	"net/http/pprof"
 	"strings"
 	"time"
 )
@@ -66,5 +67,18 @@ func CreateRouter(ctx context.Context, d Deps) *httprouter.Router {
 func CreateDebugRouter() *httprouter.Router {
 	r := httprouter.New()
 	r.Handler(http.MethodGet, "/debug/metrics", promhttp.Handler())
+	r.HandlerFunc(http.MethodGet, "/debug/ready", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("OK"))
+	})
+
+	r.HandlerFunc("GET", "/debug/pprof/profile", pprof.Profile)
+	r.HandlerFunc("GET", "/debug/pprof/symbol", pprof.Symbol)
+	r.HandlerFunc("GET", "/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandlerFunc("GET", "/debug/pprof/", pprof.Index)
+	r.HandlerFunc("GET", "/debug/pprof/allocs", pprof.Index)
+	r.HandlerFunc("GET", "/debug/pprof/block", pprof.Index)
+	r.HandlerFunc("GET", "/debug/pprof/goroutine", pprof.Index)
+	r.HandlerFunc("GET", "/debug/pprof/heap", pprof.Index)
+	r.HandlerFunc("GET", "/debug/pprof/threadcreate", pprof.Index)
 	return r
 }
