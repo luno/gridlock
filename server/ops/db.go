@@ -6,6 +6,8 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/errors"
+	"github.com/luno/jettison/j"
+	"github.com/luno/jettison/log"
 	"sync"
 	"time"
 )
@@ -26,10 +28,12 @@ type RedisDB struct {
 	Pool *redis.Pool
 }
 
-func NewRedis() (RedisDB, error) {
+func NewRedis(ctx context.Context) (RedisDB, error) {
 	if *redisAddr == "" {
 		return RedisDB{}, errors.New("redis not configured")
 	}
+
+	log.Info(ctx, "redis database configured", j.KV("address", *redisAddr))
 
 	var do []redis.DialOption
 	if *redisUser != "" || *redisPassword != "" {

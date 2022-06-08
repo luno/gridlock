@@ -33,7 +33,7 @@ func main() {
 	defer cancel()
 
 	var s state
-	red, err := ops.NewRedis()
+	red, err := ops.NewRedis(ctx)
 	if err != nil {
 		log.Error(ctx, errors.Wrap(err, "failed to connect to redis, falling back to memory db"))
 		s.Log = ops.NewLoader(ctx, ops.NewMemDB())
