@@ -21,6 +21,7 @@ type NodeDB interface {
 }
 
 var redisAddr = flag.String("redis", "redis://127.0.0.1:6379", "Address to connect to the redis server")
+var redisTLS = flag.Bool("redis_tls", false, "Use TLS to connect to redis")
 var redisUser = flag.String("redis_user", "", "User for authentication to the redis server, requires password")
 var redisPassword = flag.String("redis_password", "", "Password for authentication to the redis server")
 
@@ -47,6 +48,9 @@ func NewRedis(ctx context.Context) (RedisDB, error) {
 			redis.DialUsername(*redisUser),
 			redis.DialPassword(*redisPassword),
 		)
+	}
+	if *redisTLS {
+		do = append(do, redis.DialUseTLS(true))
 	}
 
 	return RedisDB{Pool: &redis.Pool{
