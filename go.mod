@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/gomodule/redigo v1.8.8
 	github.com/luno/jettison v0.0.0-20220222115749-b4f292a39192
-	github.com/prometheus/client_golang v1.12.2
+	github.com/prometheus/client_golang v1.11.0
 	github.com/stretchr/testify v1.7.1
 )
 
