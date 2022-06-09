@@ -9,6 +9,7 @@ import (
 	"github.com/luno/jettison/j"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -209,7 +210,8 @@ func (c *Client) do(ctx context.Context, method, url string, body io.Reader) (*h
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read response")
 	}
-	return nil, errors.New("failed to submit", j.MKV{"resp": string(b)})
+	s := strings.TrimSpace(string(b))
+	return nil, errors.New("failed to submit", j.MKV{"response": s})
 }
 
 func (c *Client) send(ctx context.Context, a *aggregate) error {
