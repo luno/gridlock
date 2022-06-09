@@ -35,15 +35,18 @@ func NewRedis(ctx context.Context) (RedisDB, error) {
 
 	log.Info(ctx, "redis database configured", j.KV("address", *redisAddr))
 
-	var do []redis.DialOption
+	do := []redis.DialOption{
+		redis.DialReadTimeout(5 * time.Second),
+		redis.DialWriteTimeout(5 * time.Second),
+	}
 	if *redisUser != "" || *redisPassword != "" {
 		if *redisUser == "" || *redisPassword == "" {
 			return RedisDB{}, errors.New("redis username/password misconfiguration")
 		}
-		do = []redis.DialOption{
+		do = append(do,
 			redis.DialUsername(*redisUser),
 			redis.DialPassword(*redisPassword),
-		}
+		)
 	}
 
 	return RedisDB{Pool: &redis.Pool{

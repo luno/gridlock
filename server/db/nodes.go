@@ -90,26 +90,14 @@ func GetBucketsBetween(from, to time.Time) []Bucket {
 func StoreNodeStat(ctx context.Context, conn redis.Conn,
 	k NodeStatKey, ttl time.Duration,
 	count int64,
-) (err error) {
-	defer func() {
-		if err != nil {
-			_, _ = redis.DoContext(conn, ctx, "DISCARD")
-		}
-	}()
-
-	expire := k.Bucket.Add(ttl)
+) error {
 	key := keyToRedis(k)
-
-	if err := conn.Send("MULTI"); err != nil {
+	_, err := redis.DoContext(conn, ctx, "INCRBY", key, count)
+	if err != nil {
 		return err
 	}
-	if err := conn.Send("INCRBY", key, count); err != nil {
-		return err
-	}
-	if err := conn.Send("EXPIREAT", key, expire.Unix()); err != nil {
-		return err
-	}
-	_, err = redis.DoContext(conn, ctx, "EXEC")
+	expire := k.Bucket.Add(ttl)
+	_, err = redis.DoContext(conn, ctx, "EXPIREAT", key, expire.Unix())
 	return err
 }
 
