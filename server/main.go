@@ -8,7 +8,7 @@ import (
 	"github.com/luno/gridlock/server/ops"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
-	"github.com/luno/jettison/log"
+	jlog "github.com/luno/jettison/log"
 	"net"
 	"net/http"
 	"os"
@@ -27,6 +27,7 @@ func (s state) TrafficStats() ops.TrafficStats {
 }
 
 func main() {
+	InitLogging()
 	flag.Parse()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -35,7 +36,7 @@ func main() {
 	var s state
 	red, err := ops.NewRedis(ctx)
 	if err != nil {
-		log.Error(ctx, errors.Wrap(err, "failed to connect to redis, falling back to memory db"))
+		jlog.Error(ctx, errors.Wrap(err, "failed to connect to redis, falling back to memory db"))
 		s.Log = ops.NewLoader(ctx, ops.NewMemDB())
 	} else {
 		s.Log = ops.NewLoader(ctx, red)
@@ -65,18 +66,18 @@ func runWebServer(ctx context.Context, router *httprouter.Router, port int) {
 		Addr:        ":" + strconv.Itoa(port),
 	}
 	go shutdownOnCancel(ctx, srv)
-	log.Info(ctx, "server listening", j.KV("port", port))
+	jlog.Info(ctx, "server listening", j.KV("port", port))
 	err := srv.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		panic(err)
 	}
-	log.Info(ctx, "server terminated", j.KV("port", port))
+	jlog.Info(ctx, "server terminated", j.KV("port", port))
 }
 
 func shutdownOnCancel(ctx context.Context, server *http.Server) {
 	<-ctx.Done()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	log.Info(ctx, "shutting down http server")
+	jlog.Info(ctx, "shutting down http server")
 	_ = server.Shutdown(ctx)
 }
