@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"github.com/gomodule/redigo/redis"
-	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
 	"github.com/luno/jettison/log"
@@ -46,7 +45,7 @@ func keyFromRedis(s string) (NodeStatKey, error) {
 	parts := strings.Split(s, ".")
 	// Handle 6 part keys for a bit
 	if len(parts) == 6 {
-		parts = append([]string{api.TransportGRPC}, parts...)
+		parts = append([]string{""}, parts...)
 	}
 	if len(parts) != 7 {
 		return NodeStatKey{}, errors.New("invalid number of parts", j.KV("parts", len(parts)))
