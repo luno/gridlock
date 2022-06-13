@@ -16,6 +16,18 @@ const (
 	RendererFocusedChild NodeRenderer = "focusedChild"
 )
 
+type NodeType string
+
+const (
+	NodeAzure   NodeType = "azure"
+	NodeDefault NodeType = "default"
+	NodePipe    NodeType = "pipe"
+	NodeStorage NodeType = "storage"
+	NodeService NodeType = "service"
+	NodeUser    NodeType = "user"
+	NodeUsers   NodeType = "users"
+)
+
 type Notice struct {
 	Title    string `json:"title"`
 	Link     string `json:"link"`
@@ -23,9 +35,9 @@ type Notice struct {
 }
 
 type Metrics struct {
-	Normal  int64 `json:"normal"`
-	Danger  int64 `json:"danger"`
-	Warning int64 `json:"warning"`
+	Normal  float64 `json:"normal"`
+	Danger  float64 `json:"danger"`
+	Warning float64 `json:"warning"`
 }
 
 type Connection struct {
@@ -42,6 +54,7 @@ type Node struct {
 	Class       NodeClass    `json:"class,omitempty"`
 	Layout      string       `json:"layout,omitempty"`
 	Renderer    NodeRenderer `json:"renderer"`
+	NodeType    NodeType     `json:"node_type,omitempty"`
 	Name        string       `json:"name"`
 	DisplayName string       `json:"displayName,omitempty"`
 

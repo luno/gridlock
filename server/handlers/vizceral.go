@@ -7,13 +7,14 @@ import (
 	"github.com/luno/gridlock/server/ops"
 	"github.com/luno/jettison/log"
 	"net/http"
+	"time"
 )
 
 func VizceralTrafficHandler(d Deps) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		ctx := r.Context()
-		t := d.TrafficStats().GetTraffic()
-		g := ops.CompileVizceralGraph(t)
+		t := d.TrafficStats().GetMetricLog()
+		g := ops.CompileVizceralGraph(t, time.Now())
 		b, err := json.Marshal(g)
 		if err != nil {
 			log.Error(ctx, err)

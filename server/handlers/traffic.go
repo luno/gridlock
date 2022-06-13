@@ -12,7 +12,7 @@ import (
 func GetTrafficHandler(d Deps) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		ctx := r.Context()
-		t := d.TrafficStats().GetTraffic()
+		t := d.TrafficStats().GetMetricLog()
 		resp := api.GetTraffic{
 			Traffic: ops.SummariseTraffic(t),
 		}

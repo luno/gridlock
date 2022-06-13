@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"github.com/gomodule/redigo/redis"
+	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
 	"github.com/luno/jettison/log"
@@ -12,6 +13,7 @@ import (
 )
 
 type NodeStatKey struct {
+	Transport    string
 	SourceRegion string
 	Source       string
 	TargetRegion string
@@ -32,17 +34,29 @@ type Bucket struct {
 	time.Time
 }
 
+func (b Bucket) Previous() Bucket {
+	return Bucket{b.Add(-BucketDuration)}
+}
+
+func (b Bucket) Next() Bucket {
+	return Bucket{b.Add(BucketDuration)}
+}
+
 func keyFromRedis(s string) (NodeStatKey, error) {
 	parts := strings.Split(s, ".")
-	if len(parts) != 6 {
+	// Handle 6 part keys for a bit
+	if len(parts) == 6 {
+		parts = append([]string{api.TransportGRPC}, parts...)
+	}
+	if len(parts) != 7 {
 		return NodeStatKey{}, errors.New("invalid number of parts", j.KV("parts", len(parts)))
 	}
-	unix, err := strconv.ParseInt(parts[5], 10, 64)
+	unix, err := strconv.ParseInt(parts[6], 10, 64)
 	if err != nil {
 		return NodeStatKey{}, errors.Wrap(err, "invalid timestamp", j.KV("value", parts[5]))
 	}
 	b := Bucket{time.Unix(unix, 0)}
-	level := Level(parts[4])
+	level := Level(parts[5])
 	switch level {
 	case Good:
 	case Warning:
@@ -51,14 +65,16 @@ func keyFromRedis(s string) (NodeStatKey, error) {
 		return NodeStatKey{}, errors.New("invalid level", j.KV("value", level))
 	}
 	return NodeStatKey{
-		SourceRegion: parts[0], Source: parts[1],
-		TargetRegion: parts[2], Target: parts[3],
+		Transport:    parts[0],
+		SourceRegion: parts[1], Source: parts[2],
+		TargetRegion: parts[3], Target: parts[4],
 		Bucket: b, Level: level,
 	}, nil
 }
 
 func keyToRedis(k NodeStatKey) string {
 	return strings.Join([]string{
+		k.Transport,
 		k.SourceRegion, k.Source,
 		k.TargetRegion, k.Target,
 		string(k.Level),
@@ -75,13 +91,9 @@ func GetBucket(t time.Time) Bucket {
 	return Bucket{t.Truncate(BucketDuration)}
 }
 
-func NextBucket(b Bucket) Bucket {
-	return Bucket{b.Add(BucketDuration)}
-}
-
 func GetBucketsBetween(from, to time.Time) []Bucket {
 	var ret []Bucket
-	for b := GetBucket(from); b.Before(to); b = NextBucket(b) {
+	for b := GetBucket(from); b.Before(to); b = b.Next() {
 		ret = append(ret, b)
 	}
 	return ret

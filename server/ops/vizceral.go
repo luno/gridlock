@@ -1,7 +1,10 @@
 package ops
 
 import (
+	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/api/vizceral"
+	"github.com/luno/gridlock/server/db"
+	"time"
 )
 
 func createNode(name string, rend vizceral.NodeRenderer, ts int64) vizceral.Node {
@@ -13,11 +16,15 @@ func createNode(name string, rend vizceral.NodeRenderer, ts int64) vizceral.Node
 	}
 }
 
-func CompileVizceralGraph(t Traffic) vizceral.Node {
-	var ts int64
-	if !t.To.IsZero() {
-		ts = t.To.Unix()
+func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
+	g := NewGraph()
+	for _, m := range ml {
+		src := g.EnsureRegion(m.SourceRegion)
+		src.EnsureNode(m.Source)
+		tgt := g.EnsureRegion(m.TargetRegion)
+		tgt.EnsureNode(m.Target)
 	}
+	ts := db.GetBucket(at).Unix()
 
 	internet := createNode("INTERNET", vizceral.RendererRegion, ts)
 	root := vizceral.Node{
@@ -28,26 +35,33 @@ func CompileVizceralGraph(t Traffic) vizceral.Node {
 		Connections:      []vizceral.Connection{},
 	}
 
-	for name, region := range t.Regions {
-		rn := createNode(name, vizceral.RendererRegion, ts)
+	for regionName, region := range g.Regions {
+		rn := createNode(regionName, vizceral.RendererRegion, ts)
 
-		for nodeName, node := range region.Nodes {
+		for nodeName := range region.Nodes {
 			n := createNode(nodeName, vizceral.RendererFocusedChild, ts)
-
-			for target, stats := range node.Outgoing {
-				rn.Connections = append(rn.Connections, vizceral.Connection{
-					Source: nodeName,
-					Target: target,
-					Metrics: vizceral.Metrics{
-						Normal:  stats.Good,
-						Warning: stats.Warning,
-						Danger:  stats.Bad,
-					},
-				})
-				rn.MaxVolume += float64(stats.Good + stats.Warning + stats.Bad)
-			}
 			rn.Nodes = append(rn.Nodes, n)
 		}
+
+		for _, m := range ml {
+			if m.SourceRegion != m.TargetRegion || m.SourceRegion != regionName {
+				continue
+			}
+			rn.Connections = append(rn.Connections, vizceral.Connection{
+				Source: m.Source,
+				Target: m.Target,
+				Metrics: vizceral.Metrics{
+					Normal:  float64(m.CountGood) / 60,
+					Warning: float64(m.CountWarning) / 60,
+					Danger:  float64(m.CountBad) / 60,
+				},
+			})
+			this := float64(m.CountGood+m.CountWarning+m.CountBad) / 60
+			if this > rn.MaxVolume {
+				rn.MaxVolume = this
+			}
+		}
+
 		root.Nodes = append(root.Nodes, rn)
 		root.Connections = append(root.Connections, vizceral.Connection{
 			Source: "INTERNET",
