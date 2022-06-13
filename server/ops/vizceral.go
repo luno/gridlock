@@ -19,10 +19,7 @@ func createNode(name string, rend vizceral.NodeRenderer, ts int64) vizceral.Node
 func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
 	g := NewGraph()
 	for _, m := range ml {
-		src := g.EnsureRegion(m.SourceRegion)
-		src.EnsureNode(m.Source)
-		tgt := g.EnsureRegion(m.TargetRegion)
-		tgt.EnsureNode(m.Target)
+		g.AddMetric(m)
 	}
 	ts := db.GetBucket(at).Unix()
 
@@ -38,8 +35,11 @@ func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
 	for regionName, region := range g.Regions {
 		rn := createNode(regionName, vizceral.RendererRegion, ts)
 
-		for nodeName := range region.Nodes {
+		for nodeName, node := range region.Nodes {
 			n := createNode(nodeName, vizceral.RendererFocusedChild, ts)
+			if node.Type == NodeDatabase {
+				n.NodeType = vizceral.NodeStorage
+			}
 			rn.Nodes = append(rn.Nodes, n)
 		}
 
