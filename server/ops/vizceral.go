@@ -37,8 +37,11 @@ func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
 
 		for nodeName, node := range region.Nodes {
 			n := createNode(nodeName, vizceral.RendererFocusedChild, ts)
-			if node.Type == NodeDatabase {
+			switch node.Type {
+			case NodeDatabase:
 				n.NodeType = vizceral.NodeStorage
+			case NodeUser:
+				n.NodeType = vizceral.NodeUsers
 			}
 			rn.Nodes = append(rn.Nodes, n)
 		}

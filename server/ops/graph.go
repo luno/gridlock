@@ -2,6 +2,7 @@ package ops
 
 import (
 	"github.com/luno/gridlock/api"
+	"strings"
 	"time"
 )
 
@@ -10,6 +11,7 @@ type NodeType int
 const (
 	NodeUnknown = iota
 	NodeDatabase
+	NodeUser
 )
 
 type Graph struct {
@@ -48,10 +50,14 @@ type Node struct {
 
 func (g *Graph) AddMetric(m api.Metrics) {
 	src := g.EnsureRegion(m.SourceRegion)
-	src.EnsureNode(m.Source)
+	s := src.EnsureNode(m.Source)
 	tgt := g.EnsureRegion(m.TargetRegion)
 	t := tgt.EnsureNode(m.Target)
+
 	if m.Transport == api.TransportSQL {
 		t.Type = NodeDatabase
+	}
+	if strings.ToLower(m.Source) == "internet" {
+		s.Type = NodeUser
 	}
 }
