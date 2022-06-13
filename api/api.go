@@ -3,9 +3,9 @@ package api
 type Transport string
 
 const (
-	TransportHTTP = "http"
-	TransportGRPC = "grpc"
-	TransportSQL  = "sql"
+	TransportHTTP Transport = "http"
+	TransportGRPC Transport = "grpc"
+	TransportSQL  Transport = "sql"
 )
 
 type Metrics struct {

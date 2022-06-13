@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"time"
 )
@@ -39,17 +40,12 @@ func main() {
 	wg.Wait()
 }
 
-var sources = map[string]int{
-	"fe":       50,
-	"console":  25,
-	"exchange": 15,
-}
-
-var targets = map[string]int{
-	"console":  25,
-	"exchange": 10,
-	"broker":   1,
-	"ethereum": 1,
+var targets = map[string]map[string]int{
+	"internet": {"fe": 1},
+	"fe":       {"console": 3, "exchange": 1, "broker": 5},
+	"broker":   {"kraken": 1, "bitstamp": 1, "broker_db": 1},
+	"exchange": {"exchange_db": 1},
+	"console":  {"ethereum": 1},
 }
 
 var success = map[gridlock.CallSuccess]int{
@@ -58,18 +54,33 @@ var success = map[gridlock.CallSuccess]int{
 	gridlock.CallBad:     3,
 }
 
-func randomMethod(r *rand.Rand) gridlock.Method {
-	return gridlock.Method{
-		Source:       ChooseWeighted(r, sources),
-		SourceRegion: "eu-west-1",
-		Target:       ChooseWeighted(r, targets),
-		TargetRegion: "eu-west-1",
-		Transport:    api.TransportGRPC,
+func randomMethodPath(r *rand.Rand) []gridlock.Method {
+	var ret []gridlock.Method
+	source := "internet"
+	for {
+		target := ChooseWeighted(r, targets[source])
+		if target == "" {
+			break
+		}
+		transport := api.TransportGRPC
+		if strings.HasSuffix(target, "_db") {
+			transport = api.TransportSQL
+		}
+		m := gridlock.Method{
+			Source:       source,
+			SourceRegion: "eu-west-1",
+			Target:       target,
+			TargetRegion: "eu-west-1",
+			Transport:    transport,
+		}
+		ret = append(ret, m)
+		source = target
 	}
+	return ret
 }
 
 func simulateCalls(ctx context.Context, client *gridlock.Client, seed int64) error {
-	ti := time.NewTicker(time.Microsecond)
+	ti := time.NewTicker(time.Millisecond)
 	defer ti.Stop()
 
 	r := rand.New(rand.NewSource(seed))
@@ -79,7 +90,9 @@ func simulateCalls(ctx context.Context, client *gridlock.Client, seed int64) err
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ti.C:
-			client.Record(randomMethod(r), ChooseWeighted(r, success))
+			for _, m := range randomMethodPath(r) {
+				client.Record(m, ChooseWeighted(r, success))
+			}
 		}
 	}
 }

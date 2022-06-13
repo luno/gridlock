@@ -17,10 +17,17 @@ type TrafficStats interface {
 	GetMetricLog() []api.Metrics
 }
 
-type stats struct {
+type Stats struct {
 	Good    int64
 	Warning int64
 	Bad     int64
+}
+
+func (s Stats) Add(o Stats) Stats {
+	s.Good += o.Good
+	s.Warning += o.Warning
+	s.Bad += o.Bad
+	return s
 }
 
 type Loader struct {
@@ -131,14 +138,14 @@ func (l *Loader) refreshTraffic(ctx context.Context) error {
 }
 
 func loadAllMetrics(ctx context.Context, ndb NodeDB) ([]api.Metrics, error) {
-	stats := make(map[db.NodeStatKey]stats)
+	stats := make(map[db.NodeStatKey]Stats)
 	err := ndb.ScanAllNodeStatKeys(ctx, func(ctx context.Context, key db.NodeStatKey) error {
 		val, err := ndb.GetNodeStatCount(ctx, key)
 		if err != nil {
 			return err
 		}
 		aggrKey := key
-		// Zero the level so we can use it as a key to aggregate stats
+		// Zero the level so we can use it as a key to aggregate Stats
 		aggrKey.Level = ""
 		s := stats[aggrKey]
 		switch key.Level {

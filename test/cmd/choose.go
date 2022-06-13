@@ -5,6 +5,9 @@ import (
 )
 
 func ChooseWeighted[Key comparable](r *rand.Rand, weights map[Key]int) Key {
+	if len(weights) == 0 {
+		return *new(Key)
+	}
 	var sum int
 	for _, v := range weights {
 		sum += v

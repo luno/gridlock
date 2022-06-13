@@ -66,10 +66,25 @@ func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
 		}
 
 		root.Nodes = append(root.Nodes, rn)
-		root.Connections = append(root.Connections, vizceral.Connection{
-			Source: "INTERNET",
-			Target: rn.Name,
-		})
+	}
+
+	rt := NewRegionalTraffic()
+	for _, m := range ml {
+		rt.AddMetric(m)
+	}
+
+	for from, region := range rt {
+		for to, s := range region {
+			root.Connections = append(root.Connections, vizceral.Connection{
+				Source: from,
+				Target: to,
+				Metrics: vizceral.Metrics{
+					Normal:  float64(s.Good) / 60,
+					Warning: float64(s.Warning) / 60,
+					Danger:  float64(s.Bad) / 60,
+				},
+			})
+		}
 	}
 	return root
 }
