@@ -73,13 +73,16 @@ func keyFromRedis(s string) (NodeStatKey, error) {
 }
 
 func keyToRedis(k NodeStatKey) string {
-	return strings.Join([]string{
-		k.Transport,
+	parts := []string{
 		k.SourceRegion, k.Source,
 		k.TargetRegion, k.Target,
 		string(k.Level),
 		strconv.FormatInt(k.Bucket.Unix(), 10),
-	}, ".")
+	}
+	if k.Transport != "" {
+		parts = append([]string{k.Transport}, parts...)
+	}
+	return strings.Join(parts, ".")
 }
 
 const (
