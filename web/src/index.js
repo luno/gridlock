@@ -20,7 +20,7 @@ function fontsActive () {
   ReactDOM.render(
       <BrowserRouter history={history} basename={'gridlock'}>
           <Routes>
-              <Route path="/" element={<App />}></Route>
+              <Route path="/*" element={<App />}></Route>
           </Routes>
       </BrowserRouter>,
     document.getElementById('root')

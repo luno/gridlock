@@ -12,6 +12,10 @@ import (
 var webBuild = flag.String("web_build", "", "`build` folder for web app")
 
 func serveIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	if *webBuild == "" {
+		http.NotFound(w, r)
+		return
+	}
 	http.ServeFile(w, r, *webBuild+"/index.html")
 }
 

@@ -14,19 +14,31 @@ import (
 	"time"
 )
 
+func deliverForever(ctx context.Context, c *gridlock.Client) {
+	for {
+		err := c.Deliver(ctx)
+		if errors.IsAny(err, context.Canceled, context.DeadlineExceeded) {
+			return
+		} else if err != nil {
+			log.Error(ctx, err)
+		}
+		time.Sleep(time.Second)
+	}
+}
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	c := gridlock.NewClient(gridlock.WithBaseURL("http://localhost/gridlock"))
-	go func() {
-		err := c.Deliver(ctx)
-		if err != nil {
-			log.Error(ctx, err)
-		}
-	}()
 
 	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		deliverForever(ctx, c)
+	}()
+
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func() {
