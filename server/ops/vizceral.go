@@ -18,10 +18,10 @@ func createNode(name string, rend vizceral.NodeRenderer, ts int64) vizceral.Node
 
 func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
 	g := NewGraph()
+	ts := db.GetBucket(at).Previous().Unix()
 	for _, m := range ml {
-		g.AddMetric(m)
+		g.AddMetric(m, m.Timestamp == ts)
 	}
-	ts := db.GetBucket(at).Unix()
 
 	internet := createNode("INTERNET", vizceral.RendererRegion, ts)
 	root := vizceral.Node{
@@ -44,40 +44,28 @@ func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
 				n.NodeType = vizceral.NodeUsers
 			}
 			rn.Nodes = append(rn.Nodes, n)
-		}
 
-		for _, m := range ml {
-			if m.SourceRegion != m.TargetRegion || m.SourceRegion != regionName {
-				continue
-			}
-			rn.Connections = append(rn.Connections, vizceral.Connection{
-				Source: m.Source,
-				Target: m.Target,
-				Metrics: vizceral.Metrics{
-					Normal:  float64(m.CountGood) / 60,
-					Warning: float64(m.CountWarning) / 60,
-					Danger:  float64(m.CountBad) / 60,
-				},
-			})
-			this := float64(m.CountGood+m.CountWarning+m.CountBad) / 60
-			if this > rn.MaxVolume {
-				rn.MaxVolume = this
+			for target, stats := range node.Outgoing {
+				rn.Connections = append(rn.Connections, vizceral.Connection{
+					Source: nodeName,
+					Target: target,
+					Metrics: vizceral.Metrics{
+						Normal:  float64(stats.Good) / 60,
+						Warning: float64(stats.Warning) / 60,
+						Danger:  float64(stats.Bad) / 60,
+					},
+				})
+				this := float64(stats.Good+stats.Warning+stats.Bad) / 60
+				if this > rn.MaxVolume {
+					rn.MaxVolume = this
+				}
 			}
 		}
 
-		root.Nodes = append(root.Nodes, rn)
-	}
-
-	rt := NewRegionalTraffic()
-	for _, m := range ml {
-		rt.AddMetric(m)
-	}
-
-	for from, region := range rt {
-		for to, s := range region {
+		for targetRegion, s := range region.Cross {
 			root.Connections = append(root.Connections, vizceral.Connection{
-				Source: from,
-				Target: to,
+				Source: regionName,
+				Target: targetRegion,
 				Metrics: vizceral.Metrics{
 					Normal:  float64(s.Good) / 60,
 					Warning: float64(s.Warning) / 60,
@@ -85,6 +73,19 @@ func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
 				},
 			})
 		}
+		root.Nodes = append(root.Nodes, rn)
+	}
+
+	for region, s := range g.Incoming {
+		root.Connections = append(root.Connections, vizceral.Connection{
+			Source: "INTERNET",
+			Target: region,
+			Metrics: vizceral.Metrics{
+				Normal:  float64(s.Good) / 60,
+				Warning: float64(s.Warning) / 60,
+				Danger:  float64(s.Bad) / 60,
+			},
+		})
 	}
 	return root
 }

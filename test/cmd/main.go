@@ -66,6 +66,11 @@ var success = map[gridlock.CallSuccess]int{
 	gridlock.CallBad:     3,
 }
 
+var regions = map[string]int{
+	"eu-west-1":      10,
+	"ap-southeast-3": 1,
+}
+
 func randomMethodPath(r *rand.Rand) []gridlock.Method {
 	var ret []gridlock.Method
 	source := "internet"
@@ -80,9 +85,9 @@ func randomMethodPath(r *rand.Rand) []gridlock.Method {
 		}
 		m := gridlock.Method{
 			Source:       source,
-			SourceRegion: "eu-west-1",
+			SourceRegion: ChooseWeighted(r, regions),
 			Target:       target,
-			TargetRegion: "eu-west-1",
+			TargetRegion: ChooseWeighted(r, regions),
 			Transport:    transport,
 		}
 		ret = append(ret, m)
