@@ -19,11 +19,16 @@ import (
 )
 
 type state struct {
-	Log ops.TrafficStats
+	Log      ops.TrafficStats
+	Registry ops.NodeRegistry
 }
 
 func (s state) TrafficStats() ops.TrafficStats {
 	return s.Log
+}
+
+func (s state) NodeRegistry() ops.NodeRegistry {
+	return s.Registry
 }
 
 func main() {
@@ -33,11 +38,15 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	var s state
+	mdb := ops.NewMemDB()
+
+	s := state{
+		Registry: mdb,
+	}
 	red, err := ops.NewRedis(ctx)
 	if err != nil {
 		jlog.Error(ctx, errors.Wrap(err, "failed to connect to redis, falling back to memory db"))
-		s.Log = ops.NewLoader(ctx, ops.NewMemDB())
+		s.Log = ops.NewLoader(ctx, mdb)
 	} else {
 		s.Log = ops.NewLoader(ctx, red)
 	}

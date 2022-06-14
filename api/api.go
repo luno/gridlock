@@ -24,8 +24,26 @@ type Metrics struct {
 }
 
 type SubmitMetrics struct {
-	Metrics []Metrics `json:"metrics"`
+	Metrics  []Metrics  `json:"metrics"`
+	NodeInfo []NodeInfo `json:"node_info"`
 }
+
+type NodeInfo struct {
+	// Name should be unique in a region
+	Name string `json:"name"`
+	// DisplayName is what will be displayed on the front end
+	DisplayName string `json:"display_name"`
+	// Type controls what kind of node this is
+	Type NodeType `json:"type"`
+}
+
+type NodeType string
+
+const (
+	NodeDatabase NodeType = "database"
+	NodeInternet NodeType = "internet"
+	NodeService  NodeType = "service"
+)
 
 type Traffic struct {
 	From         string `json:"from"`
@@ -39,4 +57,8 @@ type Traffic struct {
 
 type GetTrafficResponse struct {
 	Traffic []Traffic `json:"traffic"`
+}
+
+type GetNodesResponse struct {
+	NodeInfo []NodeInfo `json:"node_info"`
 }

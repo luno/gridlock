@@ -4,10 +4,12 @@ import (
 	"context"
 	"flag"
 	"github.com/gomodule/redigo/redis"
+	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
 	"github.com/luno/jettison/log"
+	"sort"
 	"sync"
 	"time"
 )
@@ -141,13 +143,17 @@ func (c redisCursor) More() bool {
 type MemDB struct {
 	mu    sync.RWMutex
 	Nodes map[db.NodeStatKey]int64
-	c     chan struct{}
+
+	niMu     sync.RWMutex
+	nodeInfo map[string]api.NodeInfo
+	c        chan struct{}
 }
 
 func NewMemDB() *MemDB {
 	return &MemDB{
-		Nodes: make(map[db.NodeStatKey]int64),
-		c:     make(chan struct{}, 1),
+		Nodes:    make(map[db.NodeStatKey]int64),
+		c:        make(chan struct{}, 1),
+		nodeInfo: make(map[string]api.NodeInfo),
 	}
 }
 
@@ -186,6 +192,29 @@ func (m *MemDB) StoreNodeStat(_ context.Context, k db.NodeStatKey, _ time.Durati
 
 func (m *MemDB) WaitForChanges() chan struct{} {
 	return m.c
+}
+
+func (m *MemDB) RegisterNodes(_ context.Context, info ...api.NodeInfo) error {
+	m.niMu.Lock()
+	defer m.niMu.Unlock()
+	for _, i := range info {
+		m.nodeInfo[i.Name] = i
+	}
+	return nil
+}
+
+func (m *MemDB) GetNodes(context.Context) ([]api.NodeInfo, error) {
+	m.niMu.RLock()
+	defer m.niMu.RUnlock()
+
+	ret := make([]api.NodeInfo, 0, len(m.nodeInfo))
+	for _, v := range m.nodeInfo {
+		ret = append(ret, v)
+	}
+	sort.Slice(ret, func(i, j int) bool {
+		return ret[i].Name < ret[j].Name
+	})
+	return ret, nil
 }
 
 var _ NodeDB = (*RedisDB)(nil)

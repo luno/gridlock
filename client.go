@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -41,7 +42,9 @@ type Client struct {
 	flushPeriod time.Duration
 	reqTimeout  time.Duration
 
-	q chan incCall
+	q      chan incCall
+	nodeMu sync.RWMutex
+	nodes  map[string]api.NodeInfo
 }
 
 type ClientOption func(*Client)
@@ -101,8 +104,9 @@ func NewClient(opts ...ClientOption) *Client {
 		cli:         http.DefaultClient,
 		flushChan:   make(chan chan error, 1),
 		flushPeriod: 20 * time.Second,
-		q:           make(chan incCall, 1000),
 		reqTimeout:  30 * time.Second,
+		q:           make(chan incCall, 1000),
+		nodes:       make(map[string]api.NodeInfo),
 	}
 	for _, opt := range opts {
 		opt(ret)
@@ -151,6 +155,23 @@ func (c *Client) Record(m Method, s CallSuccess) chan struct{} {
 	return done
 }
 
+func (c *Client) RegisterNode(info api.NodeInfo) {
+	c.nodeMu.Lock()
+	defer c.nodeMu.Unlock()
+	c.nodes[info.Name] = info
+}
+
+func (c *Client) GetNodes() []api.NodeInfo {
+	c.nodeMu.RLock()
+	defer c.nodeMu.RUnlock()
+
+	ret := make([]api.NodeInfo, 0, len(c.nodes))
+	for _, v := range c.nodes {
+		ret = append(ret, v)
+	}
+	return ret
+}
+
 func (c *Client) Deliver(ctx context.Context) error {
 	t := time.NewTicker(c.flushPeriod)
 	defer t.Stop()
@@ -164,11 +185,11 @@ func (c *Client) Deliver(ctx context.Context) error {
 			agg.Record(call.M, call.Success)
 			close(call.Done)
 		case <-t.C:
-			if err := c.send(ctx, &agg); err != nil {
+			if err := c.send(ctx, &agg, c.GetNodes()); err != nil {
 				return err
 			}
 		case ch := <-c.flushChan:
-			ch <- c.send(ctx, &agg)
+			ch <- c.send(ctx, &agg, c.GetNodes())
 		}
 	}
 }
@@ -214,8 +235,8 @@ func (c *Client) do(ctx context.Context, method, url string, body io.Reader) (*h
 	return nil, errors.New("failed to submit", j.MKV{"response": s})
 }
 
-func (c *Client) send(ctx context.Context, a *aggregate) error {
-	if len(*a) == 0 {
+func (c *Client) send(ctx context.Context, a *aggregate, nodes []api.NodeInfo) error {
+	if len(*a) == 0 && len(nodes) == 0 {
 		return nil
 	}
 	defer a.Reset()
@@ -223,7 +244,7 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 	start := time.Now()
 	ts := start.Unix()
 
-	var sub api.SubmitMetrics
+	sub := api.SubmitMetrics{NodeInfo: nodes}
 	var total int64
 	for method, calls := range *a {
 		sub.Metrics = append(sub.Metrics, api.Metrics{

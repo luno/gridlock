@@ -39,6 +39,8 @@ func main() {
 		deliverForever(ctx, c)
 	}()
 
+	registerNodes(c)
+
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func() {
@@ -94,6 +96,33 @@ func randomMethodPath(r *rand.Rand) []gridlock.Method {
 		source = target
 	}
 	return ret
+}
+
+func registerNodes(c *gridlock.Client) {
+	done := map[string]struct{}{"internet": {}}
+	todo := []string{"internet"}
+	for len(todo) > 0 {
+		next := todo[0]
+		todo = todo[1:]
+
+		t := api.NodeService
+		if strings.HasSuffix(next, "_db") {
+			t = api.NodeDatabase
+		}
+		c.RegisterNode(api.NodeInfo{
+			Name:        next,
+			DisplayName: next,
+			Type:        t,
+		})
+
+		for tgt := range targets[next] {
+			if _, d := done[tgt]; d {
+				continue
+			}
+			todo = append(todo, tgt)
+			done[tgt] = struct{}{}
+		}
+	}
 }
 
 func simulateCalls(ctx context.Context, client *gridlock.Client, seed int64) error {

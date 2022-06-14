@@ -48,6 +48,7 @@ func CreateRouter(ctx context.Context, d Deps) *httprouter.Router {
 
 	grid.POST("/api/submit", SubmitMetricsHandler(d))
 	grid.GET("/api/traffic", GetTrafficHandler(d))
+	grid.GET("/api/nodes", GetNodesHandler(d))
 	grid.GET("/api/graph", VizceralTrafficHandler(d))
 
 	createWebApp(ctx, grid)
