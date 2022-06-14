@@ -2,15 +2,26 @@ package ops
 
 import (
 	"github.com/luno/gridlock/api"
+	"github.com/luno/gridlock/server/db"
 	"sort"
+	"time"
 )
 
-func SummariseTraffic(ml []api.Metrics) []api.Traffic {
+func SummariseTraffic(ml []api.Metrics, ts time.Time) []api.Traffic {
 	var ret []api.Traffic
+	if !ts.IsZero() {
+		ts = db.GetBucket(ts).Time
+	}
 	for _, m := range ml {
+		buck := time.Unix(m.Timestamp, 0)
+		if !ts.IsZero() && !buck.Equal(ts) {
+			continue
+		}
 		ret = append(ret, api.Traffic{
 			From:         m.Source,
 			To:           m.Target,
+			Ts:           m.Timestamp,
+			Duration:     int(db.BucketDuration / time.Second),
 			CountGood:    m.CountGood,
 			CountWarning: m.CountWarning,
 			CountBad:     m.CountBad,

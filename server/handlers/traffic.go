@@ -7,23 +7,37 @@ import (
 	"github.com/luno/gridlock/server/ops"
 	"github.com/luno/jettison/log"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 func GetTrafficHandler(d Deps) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		ctx := r.Context()
 		t := d.TrafficStats().GetMetricLog()
-		resp := api.GetTraffic{
-			Traffic: ops.SummariseTraffic(t),
+
+		q := r.URL.Query()
+		var ts time.Time
+		if q.Has("ts") {
+			unixTs, err := strconv.ParseInt(q.Get("ts"), 10, 64)
+			if err != nil {
+				http.Error(w, "Bad ts parameter", http.StatusBadRequest)
+				return
+			}
+			ts = time.Unix(unixTs, 0)
 		}
-		b, err := json.Marshal(resp)
+
+		resp := api.GetTrafficResponse{
+			Traffic: ops.SummariseTraffic(t, ts),
+		}
+		respBytes, err := json.Marshal(resp)
 		if err != nil {
 			log.Error(ctx, err)
 			http.Error(w, "Internal Error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, err = w.Write(b)
+		_, err = w.Write(respBytes)
 		if err != nil {
 			log.Error(ctx, err)
 		}

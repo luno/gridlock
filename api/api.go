@@ -30,11 +30,13 @@ type SubmitMetrics struct {
 type Traffic struct {
 	From         string `json:"from"`
 	To           string `json:"to"`
+	Ts           int64  `json:"ts"`
+	Duration     int    `json:"duration"`
 	CountGood    int64  `json:"count_good"`
 	CountWarning int64  `json:"count_warning"`
 	CountBad     int64  `json:"count_bad"`
 }
 
-type GetTraffic struct {
+type GetTrafficResponse struct {
 	Traffic []Traffic `json:"traffic"`
 }

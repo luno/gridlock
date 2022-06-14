@@ -265,7 +265,7 @@ func (c *Client) GetTraffic(ctx context.Context) ([]api.Traffic, error) {
 		return nil, err
 	}
 
-	var resp api.GetTraffic
+	var resp api.GetTrafficResponse
 	err = json.Unmarshal(b, &resp)
 	if err != nil {
 		return nil, err
