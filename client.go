@@ -67,6 +67,12 @@ func WithDefaultMethod(m Method) ClientOption {
 	}
 }
 
+func WithFlushPeriod(t time.Duration) ClientOption {
+	return func(client *Client) {
+		client.flushPeriod = t
+	}
+}
+
 type Metrics struct {
 	SuccessfulCalls   Counter
 	DroppedCalls      Counter

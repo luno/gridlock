@@ -1,5 +1,7 @@
 package api
 
+import "time"
+
 type Transport string
 
 const (
@@ -17,7 +19,9 @@ type Metrics struct {
 	Target       string `json:"target"`
 	TargetRegion string `json:"target_region"`
 
-	Timestamp    int64 `json:"timestamp"`
+	Timestamp int64         `json:"timestamp"`
+	Duration  time.Duration `json:"duration"`
+
 	CountGood    int64 `json:"count_good"`
 	CountWarning int64 `json:"count_warning"`
 	CountBad     int64 `json:"count_bad"`

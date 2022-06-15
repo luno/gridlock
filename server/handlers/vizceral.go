@@ -14,7 +14,11 @@ func VizceralTrafficHandler(d Deps) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		ctx := r.Context()
 		t := d.TrafficStats().GetMetricLog()
-		g := ops.CompileVizceralGraph(t, time.Now())
+
+		to := time.Now()
+		from := to.Add(-5 * time.Minute)
+
+		g := ops.CompileVizceralGraph(t, from, to)
 		b, err := json.Marshal(g)
 		if err != nil {
 			log.Error(ctx, err)

@@ -18,24 +18,25 @@ func isFromInternet(m api.Metrics) bool {
 	return strings.ToLower(m.Source) == "internet"
 }
 
-func stats(m api.Metrics) Stats {
-	return Stats{
-		Good:    m.CountGood,
-		Warning: m.CountWarning,
-		Bad:     m.CountBad,
+func stats(m api.Metrics) RateStats {
+	return RateStats{
+		Good:     m.CountGood,
+		Warning:  m.CountWarning,
+		Bad:      m.CountBad,
+		Duration: m.Duration,
 	}
 }
 
 type Graph struct {
 	LatestBucket time.Time
 	Regions      map[string]*Region
-	Incoming     map[string]Stats
+	Incoming     map[string]RateStats
 }
 
 func NewGraph() Graph {
 	return Graph{
 		Regions:  make(map[string]*Region),
-		Incoming: make(map[string]Stats),
+		Incoming: make(map[string]RateStats),
 	}
 }
 
@@ -44,7 +45,7 @@ func (g Graph) EnsureRegion(region string) *Region {
 	if !ok {
 		r = &Region{
 			Nodes: make(map[string]*Node),
-			Cross: make(map[string]Stats),
+			Cross: make(map[string]RateStats),
 		}
 		g.Regions[region] = r
 	}
@@ -53,14 +54,14 @@ func (g Graph) EnsureRegion(region string) *Region {
 
 type Region struct {
 	Nodes map[string]*Node
-	Cross map[string]Stats
+	Cross map[string]RateStats
 }
 
 func (r *Region) EnsureNode(name string) *Node {
 	_, ok := r.Nodes[name]
 	if !ok {
 		r.Nodes[name] = &Node{
-			Outgoing: make(map[string]Stats),
+			Outgoing: make(map[string]RateStats),
 		}
 	}
 	return r.Nodes[name]
@@ -68,7 +69,7 @@ func (r *Region) EnsureNode(name string) *Node {
 
 type Node struct {
 	Type     NodeType
-	Outgoing map[string]Stats
+	Outgoing map[string]RateStats
 }
 
 func (g *Graph) AddMetric(m api.Metrics, addStats bool) {

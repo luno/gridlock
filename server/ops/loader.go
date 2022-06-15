@@ -17,17 +17,31 @@ type TrafficStats interface {
 	GetMetricLog() []api.Metrics
 }
 
-type Stats struct {
-	Good    int64
-	Warning int64
-	Bad     int64
+type RateStats struct {
+	Good     int64
+	Warning  int64
+	Bad      int64
+	Duration time.Duration
 }
 
-func (s Stats) Add(o Stats) Stats {
+func (s RateStats) Add(o RateStats) RateStats {
 	s.Good += o.Good
 	s.Warning += o.Warning
 	s.Bad += o.Bad
+	s.Duration += o.Duration
 	return s
+}
+
+func (s RateStats) GoodRate() float64 {
+	return float64(s.Good) / s.Duration.Seconds()
+}
+
+func (s RateStats) WarningRate() float64 {
+	return float64(s.Warning) / s.Duration.Seconds()
+}
+
+func (s RateStats) BadRate() float64 {
+	return float64(s.Bad) / s.Duration.Seconds()
 }
 
 type Loader struct {
@@ -138,14 +152,14 @@ func (l *Loader) refreshTraffic(ctx context.Context) error {
 }
 
 func loadAllMetrics(ctx context.Context, ndb NodeDB) ([]api.Metrics, error) {
-	stats := make(map[db.NodeStatKey]Stats)
+	stats := make(map[db.NodeStatKey]RateStats)
 	err := ndb.ScanAllNodeStatKeys(ctx, func(ctx context.Context, key db.NodeStatKey) error {
 		val, err := ndb.GetNodeStatCount(ctx, key)
 		if err != nil {
 			return err
 		}
 		aggrKey := key
-		// Zero the level so we can use it as a key to aggregate Stats
+		// Zero the level, so we can use it as a key to aggregate RateStats across levels
 		aggrKey.Level = ""
 		s := stats[aggrKey]
 		switch key.Level {
@@ -172,6 +186,7 @@ func loadAllMetrics(ctx context.Context, ndb NodeDB) ([]api.Metrics, error) {
 			Target:       k.Target,
 			TargetRegion: k.TargetRegion,
 			Timestamp:    k.Bucket.Time.Unix(),
+			Duration:     db.BucketDuration,
 			CountGood:    s.Good,
 			CountWarning: s.Warning,
 			CountBad:     s.Bad,

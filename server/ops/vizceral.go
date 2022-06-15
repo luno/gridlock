@@ -3,7 +3,6 @@ package ops
 import (
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/api/vizceral"
-	"github.com/luno/gridlock/server/db"
 	"time"
 )
 
@@ -16,27 +15,33 @@ func createNode(name string, rend vizceral.NodeRenderer, ts int64) vizceral.Node
 	}
 }
 
-func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
+func CompileVizceralGraph(ml []api.Metrics, from, to time.Time) vizceral.Node {
 	g := NewGraph()
-	ts := db.GetBucket(at).Previous().Unix()
+	fromTs := from.Unix()
+	toTs := to.Unix()
+	var last int64
 	for _, m := range ml {
-		g.AddMetric(m, m.Timestamp == ts)
+		if m.Timestamp > last {
+			last = m.Timestamp
+		}
+		add := m.Timestamp >= fromTs && m.Timestamp <= toTs
+		g.AddMetric(m, add)
 	}
 
-	internet := createNode("INTERNET", vizceral.RendererRegion, ts)
+	internet := createNode("INTERNET", vizceral.RendererRegion, last)
 	root := vizceral.Node{
 		Renderer:         vizceral.RendererGlobal,
 		Name:             "edge",
-		ServerUpdateTime: ts,
+		ServerUpdateTime: last,
 		Nodes:            []vizceral.Node{internet},
 		Connections:      []vizceral.Connection{},
 	}
 
 	for regionName, region := range g.Regions {
-		rn := createNode(regionName, vizceral.RendererRegion, ts)
+		rn := createNode(regionName, vizceral.RendererRegion, last)
 
 		for nodeName, node := range region.Nodes {
-			n := createNode(nodeName, vizceral.RendererFocusedChild, ts)
+			n := createNode(nodeName, vizceral.RendererFocusedChild, last)
 			switch node.Type {
 			case NodeDatabase:
 				n.NodeType = vizceral.NodeStorage
@@ -50,12 +55,12 @@ func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
 					Source: nodeName,
 					Target: target,
 					Metrics: vizceral.Metrics{
-						Normal:  float64(stats.Good) / 60,
-						Warning: float64(stats.Warning) / 60,
-						Danger:  float64(stats.Bad) / 60,
+						Normal:  stats.GoodRate(),
+						Warning: stats.WarningRate(),
+						Danger:  stats.BadRate(),
 					},
 				})
-				this := float64(stats.Good+stats.Warning+stats.Bad) / 60
+				this := stats.GoodRate() + stats.WarningRate() + stats.BadRate()
 				if this > rn.MaxVolume {
 					rn.MaxVolume = this
 				}
@@ -67,9 +72,9 @@ func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
 				Source: regionName,
 				Target: targetRegion,
 				Metrics: vizceral.Metrics{
-					Normal:  float64(s.Good) / 60,
-					Warning: float64(s.Warning) / 60,
-					Danger:  float64(s.Bad) / 60,
+					Normal:  s.GoodRate(),
+					Warning: s.WarningRate(),
+					Danger:  s.BadRate(),
 				},
 			})
 		}
@@ -81,9 +86,9 @@ func CompileVizceralGraph(ml []api.Metrics, at time.Time) vizceral.Node {
 			Source: "INTERNET",
 			Target: region,
 			Metrics: vizceral.Metrics{
-				Normal:  float64(s.Good) / 60,
-				Warning: float64(s.Warning) / 60,
-				Danger:  float64(s.Bad) / 60,
+				Normal:  s.GoodRate(),
+				Warning: s.WarningRate(),
+				Danger:  s.BadRate(),
 			},
 		})
 	}
