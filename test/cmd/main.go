@@ -109,11 +109,14 @@ func registerNodes(c *gridlock.Client) {
 		if strings.HasSuffix(next, "_db") {
 			t = api.NodeDatabase
 		}
-		c.RegisterNode(api.NodeInfo{
-			Name:        next,
-			DisplayName: next,
-			Type:        t,
-		})
+		for r := range regions {
+			c.RegisterNode(api.NodeInfo{
+				Region:      r,
+				Name:        next,
+				DisplayName: next,
+				Type:        t,
+			})
+		}
 
 		for tgt := range targets[next] {
 			if _, d := done[tgt]; d {

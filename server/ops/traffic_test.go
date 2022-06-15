@@ -25,7 +25,7 @@ func TestAgainstLocal(t *testing.T) {
 		src := "client-" + strconv.Itoa(i)
 		tgt := "server-" + strconv.Itoa(i)
 
-		key := db.NodeStatKey{
+		key := db.TrafficKey{
 			SourceRegion: "us-west-1", Source: src,
 			TargetRegion: "us-west-1", Target: tgt,
 			Bucket: db.GetBucket(now), Level: db.Good,
@@ -43,7 +43,7 @@ func TestAgainstLocal(t *testing.T) {
 		jtest.RequireNil(t, err)
 	}
 
-	err = r.ScanAllNodeStatKeys(ctx, func(ctx context.Context, key db.NodeStatKey) error {
+	err = r.ScanAllNodeStatKeys(ctx, func(ctx context.Context, key db.TrafficKey) error {
 		val, err := r.GetNodeStatCount(ctx, key)
 		if err != nil {
 			return err

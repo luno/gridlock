@@ -45,14 +45,14 @@ func (s RateStats) BadRate() float64 {
 }
 
 type Loader struct {
-	db  NodeDB
+	db  TrafficDB
 	now func() time.Time
 
 	mMu     sync.RWMutex
 	metrics []api.Metrics
 }
 
-func NewLoader(ctx context.Context, db NodeDB) *Loader {
+func NewLoader(ctx context.Context, db TrafficDB) *Loader {
 	l := &Loader{db: db, now: time.Now}
 	go l.WatchKeysForever(ctx)
 	return l
@@ -61,7 +61,7 @@ func NewLoader(ctx context.Context, db NodeDB) *Loader {
 func (l *Loader) Record(ctx context.Context, m ...api.Metrics) error {
 	for _, metric := range m {
 		b := db.GetBucket(time.Unix(metric.Timestamp, 0))
-		k := db.NodeStatKey{
+		k := db.TrafficKey{
 			Transport:    string(metric.Transport),
 			SourceRegion: metric.SourceRegion,
 			Source:       metric.Source,
@@ -130,7 +130,6 @@ func (l *Loader) refreshTraffic(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Info(ctx, "loaded metrics from database", j.KV("count", len(metrics)))
 
 	lastFull := db.GetBucket(l.now()).Previous().Unix()
 
@@ -151,9 +150,10 @@ func (l *Loader) refreshTraffic(ctx context.Context) error {
 	return nil
 }
 
-func loadAllMetrics(ctx context.Context, ndb NodeDB) ([]api.Metrics, error) {
-	stats := make(map[db.NodeStatKey]RateStats)
-	err := ndb.ScanAllNodeStatKeys(ctx, func(ctx context.Context, key db.NodeStatKey) error {
+func loadAllMetrics(ctx context.Context, ndb TrafficDB) ([]api.Metrics, error) {
+	t0 := time.Now()
+	stats := make(map[db.TrafficKey]RateStats)
+	err := ndb.ScanAllNodeStatKeys(ctx, func(ctx context.Context, key db.TrafficKey) error {
 		val, err := ndb.GetNodeStatCount(ctx, key)
 		if err != nil {
 			return err
@@ -200,6 +200,11 @@ func loadAllMetrics(ctx context.Context, ndb NodeDB) ([]api.Metrics, error) {
 			return metrics[i].Source < metrics[j].Source
 		}
 		return metrics[i].Target < metrics[j].Target
+	})
+
+	log.Info(ctx, "loaded metrics from database", j.MKV{
+		"count":      len(metrics),
+		"time_taken": time.Since(t0),
 	})
 	return metrics, nil
 }

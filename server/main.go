@@ -20,14 +20,14 @@ import (
 
 type state struct {
 	Log      ops.TrafficStats
-	Registry ops.NodeRegistry
+	Registry ops.NodeDB
 }
 
 func (s state) TrafficStats() ops.TrafficStats {
 	return s.Log
 }
 
-func (s state) NodeRegistry() ops.NodeRegistry {
+func (s state) NodeRegistry() ops.NodeDB {
 	return s.Registry
 }
 
@@ -39,16 +39,16 @@ func main() {
 	defer cancel()
 
 	mdb := ops.NewMemDB()
-
 	s := state{
 		Registry: mdb,
 	}
-	red, err := ops.NewRedis(ctx)
+	pool, err := ops.NewRedisPool(ctx)
 	if err != nil {
 		jlog.Error(ctx, errors.Wrap(err, "failed to connect to redis, falling back to memory db"))
 		s.Log = ops.NewLoader(ctx, mdb)
 	} else {
-		s.Log = ops.NewLoader(ctx, red)
+		s.Registry = ops.NewRedisNodeRegistry(pool)
+		s.Log = ops.NewLoader(ctx, ops.NewRedisNodeDB(pool))
 	}
 
 	var wg sync.WaitGroup

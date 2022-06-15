@@ -11,7 +11,20 @@ import (
 	"time"
 )
 
-type NodeStatKey struct {
+type Level string
+
+const (
+	Good    = "good"
+	Warning = "warning"
+	Bad     = "bad"
+)
+
+const (
+	BucketDuration = time.Minute
+	DefaultNodeTTL = time.Hour
+)
+
+type TrafficKey struct {
 	Transport    string
 	SourceRegion string
 	Source       string
@@ -20,14 +33,6 @@ type NodeStatKey struct {
 	Bucket       Bucket
 	Level        Level
 }
-
-type Level string
-
-const (
-	Good    = "good"
-	Warning = "warning"
-	Bad     = "bad"
-)
 
 type Bucket struct {
 	time.Time
@@ -41,18 +46,18 @@ func (b Bucket) Next() Bucket {
 	return Bucket{b.Add(BucketDuration)}
 }
 
-func keyFromRedis(s string) (NodeStatKey, error) {
+func trafficKeyFromRedis(s string) (TrafficKey, error) {
 	parts := strings.Split(s, ".")
 	// Handle 6 part keys for a bit
 	if len(parts) == 6 {
 		parts = append([]string{""}, parts...)
 	}
 	if len(parts) != 7 {
-		return NodeStatKey{}, errors.New("invalid number of parts", j.KV("parts", len(parts)))
+		return TrafficKey{}, errors.New("invalid number of parts", j.KV("parts", len(parts)))
 	}
 	unix, err := strconv.ParseInt(parts[6], 10, 64)
 	if err != nil {
-		return NodeStatKey{}, errors.Wrap(err, "invalid timestamp", j.KV("value", parts[5]))
+		return TrafficKey{}, errors.Wrap(err, "invalid timestamp", j.KV("value", parts[5]))
 	}
 	b := Bucket{time.Unix(unix, 0)}
 	level := Level(parts[5])
@@ -61,9 +66,9 @@ func keyFromRedis(s string) (NodeStatKey, error) {
 	case Warning:
 	case Bad:
 	default:
-		return NodeStatKey{}, errors.New("invalid level", j.KV("value", level))
+		return TrafficKey{}, errors.New("invalid level", j.KV("value", level))
 	}
-	return NodeStatKey{
+	return TrafficKey{
 		Transport:    parts[0],
 		SourceRegion: parts[1], Source: parts[2],
 		TargetRegion: parts[3], Target: parts[4],
@@ -71,7 +76,7 @@ func keyFromRedis(s string) (NodeStatKey, error) {
 	}, nil
 }
 
-func keyToRedis(k NodeStatKey) string {
+func trafficKeyToRedis(k TrafficKey) string {
 	parts := []string{
 		k.SourceRegion, k.Source,
 		k.TargetRegion, k.Target,
@@ -83,11 +88,6 @@ func keyToRedis(k NodeStatKey) string {
 	}
 	return strings.Join(parts, ".")
 }
-
-const (
-	BucketDuration = time.Minute
-	DefaultNodeTTL = time.Hour
-)
 
 func GetBucket(t time.Time) Bucket {
 	return Bucket{t.Truncate(BucketDuration)}
@@ -102,10 +102,10 @@ func GetBucketsBetween(from, to time.Time) []Bucket {
 }
 
 func StoreNodeStat(ctx context.Context, conn redis.Conn,
-	k NodeStatKey, ttl time.Duration,
+	k TrafficKey, ttl time.Duration,
 	count int64,
 ) error {
-	key := keyToRedis(k)
+	key := trafficKeyToRedis(k)
 	_, err := redis.DoContext(conn, ctx, "INCRBY", key, count)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -115,16 +115,16 @@ func StoreNodeStat(ctx context.Context, conn redis.Conn,
 	return errors.Wrap(err, "")
 }
 
-type HandleNodeStatFunc func(context.Context, NodeStatKey) error
+type HandleNodeStatFunc func(context.Context, TrafficKey) error
 
-func LoadSomeKeys(ctx context.Context, conn redis.Conn, cursor int64) ([]NodeStatKey, int64, error) {
+func LoadSomeKeys(ctx context.Context, conn redis.Conn, cursor int64) ([]TrafficKey, int64, error) {
 	next, keys, err := scanSomeKeys(ctx, conn, cursor)
 	if err != nil {
 		return nil, 0, err
 	}
-	ret := make([]NodeStatKey, 0, len(keys))
+	ret := make([]TrafficKey, 0, len(keys))
 	for _, k := range keys {
-		key, err := keyFromRedis(k)
+		key, err := trafficKeyFromRedis(k)
 		if err != nil {
 			log.Info(ctx, "failed to load key", j.KV("key", k), log.WithError(err))
 			continue
@@ -134,20 +134,7 @@ func LoadSomeKeys(ctx context.Context, conn redis.Conn, cursor int64) ([]NodeSta
 	return ret, next, nil
 }
 
-func scanSomeKeys(ctx context.Context, conn redis.Conn, cursor int64) (int64, []string, error) {
-	resp, err := redis.Values(redis.DoContext(conn, ctx, "SCAN", cursor))
-	if err != nil {
-		return 0, nil, errors.Wrap(err, "")
-	}
-	next, err := redis.Int64(resp[0], nil)
-	if err != nil {
-		return 0, nil, errors.Wrap(err, "")
-	}
-	keys, err := redis.Strings(resp[1], nil)
-	return next, keys, errors.Wrap(err, "")
-}
-
-func GetNodeStatCount(ctx context.Context, conn redis.Conn, key NodeStatKey) (int64, error) {
-	i, err := redis.Int64(redis.DoContext(conn, ctx, "GET", keyToRedis(key)))
+func GetNodeStatCount(ctx context.Context, conn redis.Conn, key TrafficKey) (int64, error) {
+	i, err := redis.Int64(redis.DoContext(conn, ctx, "GET", trafficKeyToRedis(key)))
 	return i, errors.Wrap(err, "")
 }

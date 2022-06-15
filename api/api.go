@@ -33,6 +33,7 @@ type SubmitMetrics struct {
 }
 
 type NodeInfo struct {
+	Region string `json:"region"`
 	// Name should be unique in a region
 	Name string `json:"name"`
 	// DisplayName is what will be displayed on the front end
