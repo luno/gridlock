@@ -11,13 +11,15 @@ const (
 )
 
 type Metrics struct {
-	Source       string `json:"source"`
-	SourceRegion string `json:"source_region"`
+	Source       string   `json:"source"`
+	SourceRegion string   `json:"source_region"`
+	SourceType   NodeType `json:"source_type"`
 
 	Transport Transport `json:"transport"`
 
-	Target       string `json:"target"`
-	TargetRegion string `json:"target_region"`
+	Target       string   `json:"target"`
+	TargetRegion string   `json:"target_region"`
+	TargetType   NodeType `json:"target_type"`
 
 	Timestamp int64         `json:"timestamp"`
 	Duration  time.Duration `json:"duration"`
@@ -28,7 +30,8 @@ type Metrics struct {
 }
 
 type SubmitMetrics struct {
-	Metrics  []Metrics  `json:"metrics"`
+	Metrics []Metrics `json:"metrics"`
+	// TODO(adam): Remove
 	NodeInfo []NodeInfo `json:"node_info"`
 }
 

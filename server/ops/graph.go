@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"fmt"
 	"github.com/luno/gridlock/api"
 	"strings"
 	"time"
@@ -44,7 +45,7 @@ func (g Graph) EnsureRegion(region string) *Region {
 	r, ok := g.Regions[region]
 	if !ok {
 		r = &Region{
-			Nodes: make(map[string]*Node),
+			Nodes: make(map[RegionalNode]*Traffic),
 			Cross: make(map[string]RateStats),
 		}
 		g.Regions[region] = r
@@ -53,51 +54,54 @@ func (g Graph) EnsureRegion(region string) *Region {
 }
 
 type Region struct {
-	Nodes map[string]*Node
+	Nodes map[RegionalNode]*Traffic
 	Cross map[string]RateStats
 }
 
-func (r *Region) EnsureNode(name string) *Node {
-	_, ok := r.Nodes[name]
+func (r *Region) EnsureNode(node RegionalNode) *Traffic {
+	_, ok := r.Nodes[node]
 	if !ok {
-		r.Nodes[name] = &Node{
-			Outgoing: make(map[string]RateStats),
+		r.Nodes[node] = &Traffic{
+			Outgoing: make(map[RegionalNode]RateStats),
 		}
 	}
-	return r.Nodes[name]
+	return r.Nodes[node]
 }
 
-type Node struct {
-	Type     NodeType
-	Outgoing map[string]RateStats
+type RegionalNode struct {
+	Name string
+	Type api.NodeType
+}
+
+func (n RegionalNode) NodeName() string {
+	return fmt.Sprintf("%s.%s", n.Name, n.Type)
+}
+
+type Traffic struct {
+	Outgoing map[RegionalNode]RateStats
 }
 
 func (g *Graph) AddMetric(m api.Metrics, addStats bool) {
-	src := g.EnsureRegion(m.SourceRegion)
-	s := src.EnsureNode(m.Source)
-	tgt := g.EnsureRegion(m.TargetRegion)
-	t := tgt.EnsureNode(m.Target)
+	srcRegion := g.EnsureRegion(m.SourceRegion)
+	src := RegionalNode{Name: m.Source, Type: m.SourceType}
+	srcTraffic := srcRegion.EnsureNode(src)
 
-	ext := isFromInternet(m)
+	tgtRegion := g.EnsureRegion(m.TargetRegion)
+	tgt := RegionalNode{Name: m.Target, Type: m.TargetType}
+	tgtRegion.EnsureNode(tgt)
 
-	if m.Transport == api.TransportSQL {
-		t.Type = NodeDatabase
-	} else if ext {
-		s.Type = NodeUser
-	}
 	if !addStats {
 		return
 	}
 
 	mStats := stats(m)
 
-	if ext {
+	if isFromInternet(m) {
 		g.Incoming[m.TargetRegion] = g.Incoming[m.TargetRegion].Add(mStats)
 	} else if m.SourceRegion != m.TargetRegion {
-		src.Cross[m.TargetRegion] = src.Cross[m.TargetRegion].Add(mStats)
+		srcRegion.Cross[m.TargetRegion] = srcRegion.Cross[m.TargetRegion].Add(mStats)
 		// Don't add cross region traffic to the node
 		return
 	}
-
-	s.Outgoing[m.Target] = s.Outgoing[m.Target].Add(mStats)
+	srcTraffic.Outgoing[tgt] = srcTraffic.Outgoing[tgt].Add(mStats)
 }

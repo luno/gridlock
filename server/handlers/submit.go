@@ -28,12 +28,6 @@ func SubmitMetricsHandler(d Deps) httprouter.Handle {
 			return
 		}
 		ctx := r.Context()
-		err = d.NodeRegistry().RegisterNodes(ctx, req.NodeInfo...)
-		if err != nil {
-			log.Error(ctx, errors.Wrap(err, "submit metrics"))
-			http.Error(w, "Internal Error", http.StatusInternalServerError)
-		}
-
 		err = d.TrafficStats().Record(ctx, req.Metrics...)
 		if err != nil {
 			log.Error(ctx, errors.Wrap(err, "submit metrics"))

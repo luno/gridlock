@@ -6,12 +6,13 @@ import (
 	"time"
 )
 
-func createNode(name string, rend vizceral.NodeRenderer, ts int64) vizceral.Node {
+func createNode(name, display string, rend vizceral.NodeRenderer, ts int64) vizceral.Node {
 	return vizceral.Node{
-		Class:    vizceral.ClassNormal,
-		Name:     name,
-		Renderer: rend,
-		Updated:  ts,
+		Class:       vizceral.ClassNormal,
+		Name:        name,
+		DisplayName: display,
+		Renderer:    rend,
+		Updated:     ts,
 	}
 }
 
@@ -28,7 +29,7 @@ func CompileVizceralGraph(ml []api.Metrics, from, to time.Time) vizceral.Node {
 		g.AddMetric(m, add)
 	}
 
-	internet := createNode("INTERNET", vizceral.RendererRegion, last)
+	internet := createNode("INTERNET", "INTERNET", vizceral.RendererRegion, last)
 	root := vizceral.Node{
 		Renderer:         vizceral.RendererGlobal,
 		Name:             "edge",
@@ -38,22 +39,22 @@ func CompileVizceralGraph(ml []api.Metrics, from, to time.Time) vizceral.Node {
 	}
 
 	for regionName, region := range g.Regions {
-		rn := createNode(regionName, vizceral.RendererRegion, last)
+		rn := createNode(regionName, regionName, vizceral.RendererRegion, last)
 
-		for nodeName, node := range region.Nodes {
-			n := createNode(nodeName, vizceral.RendererFocusedChild, last)
+		for node, traffic := range region.Nodes {
+			n := createNode(node.NodeName(), node.Name, vizceral.RendererFocusedChild, last)
 			switch node.Type {
-			case NodeDatabase:
+			case api.NodeDatabase:
 				n.NodeType = vizceral.NodeStorage
-			case NodeUser:
+			case api.NodeInternet:
 				n.NodeType = vizceral.NodeUsers
 			}
 			rn.Nodes = append(rn.Nodes, n)
 
-			for target, stats := range node.Outgoing {
+			for target, stats := range traffic.Outgoing {
 				rn.Connections = append(rn.Connections, vizceral.Connection{
-					Source: nodeName,
-					Target: target,
+					Source: node.NodeName(),
+					Target: target.NodeName(),
 					Metrics: vizceral.Metrics{
 						Normal:  stats.GoodRate(),
 						Warning: stats.WarningRate(),

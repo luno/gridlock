@@ -7,7 +7,6 @@ import (
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
 	"github.com/luno/jettison/log"
-	"sort"
 	"sync"
 	"time"
 )
@@ -15,6 +14,7 @@ import (
 type TrafficStats interface {
 	Record(ctx context.Context, m ...api.Metrics) error
 	GetMetricLog() []api.Metrics
+	GetNodes() []api.NodeInfo
 }
 
 type RateStats struct {
@@ -45,41 +45,79 @@ func (s RateStats) BadRate() float64 {
 }
 
 type Loader struct {
-	db  TrafficDB
+	trafficDB TrafficDB
+	nodeDB    NodeDB
+
 	now func() time.Time
 
 	mMu     sync.RWMutex
 	metrics []api.Metrics
+	nodes   []api.NodeInfo
 }
 
-func NewLoader(ctx context.Context, db TrafficDB) *Loader {
-	l := &Loader{db: db, now: time.Now}
+func (l *Loader) GetNodes() []api.NodeInfo {
+	l.mMu.RLock()
+	defer l.mMu.RUnlock()
+
+	cNodes := make([]api.NodeInfo, len(l.nodes))
+	copy(cNodes, l.nodes)
+	return cNodes
+}
+
+func NewLoader(ctx context.Context, trafficDB TrafficDB, nodeDB NodeDB) *Loader {
+	l := &Loader{trafficDB: trafficDB, nodeDB: nodeDB, now: time.Now}
 	go l.WatchKeysForever(ctx)
 	return l
+}
+
+func (l *Loader) maybeStoreNode(ctx context.Context, node api.NodeInfo) error {
+	id := db.Key(node).ID()
+	_, err := l.nodeDB.GetNode(ctx, id)
+	if errors.Is(err, db.ErrNodeNotFound) {
+		return l.nodeDB.RegisterNode(ctx, id, node)
+	} else if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (l *Loader) Record(ctx context.Context, m ...api.Metrics) error {
 	for _, metric := range m {
 		b := db.GetBucket(time.Unix(metric.Timestamp, 0))
+
+		from := api.NodeInfo{
+			Region: metric.SourceRegion,
+			Type:   metric.SourceType,
+			Name:   metric.Source,
+		}
+		if err := l.maybeStoreNode(ctx, from); err != nil {
+			return err
+		}
+		to := api.NodeInfo{
+			Region: metric.TargetRegion,
+			Type:   metric.TargetType,
+			Name:   metric.Target,
+		}
+		if err := l.maybeStoreNode(ctx, to); err != nil {
+			return err
+		}
+
 		k := db.TrafficKey{
-			Transport:    string(metric.Transport),
-			SourceRegion: metric.SourceRegion,
-			Source:       metric.Source,
-			TargetRegion: metric.TargetRegion,
-			Target:       metric.Target,
-			Bucket:       b,
+			FromID: db.Key(from).ID(), ToID: db.Key(to).ID(),
+			Transport: string(metric.Transport),
+			Bucket:    b,
 		}
 
 		k.Level = db.Good
-		if err := l.db.StoreNodeStat(ctx, k, db.DefaultNodeTTL, metric.CountGood); err != nil {
+		if err := l.trafficDB.StoreNodeStat(ctx, k, db.DefaultNodeTTL, metric.CountGood); err != nil {
 			return err
 		}
 		k.Level = db.Warning
-		if err := l.db.StoreNodeStat(ctx, k, db.DefaultNodeTTL, metric.CountWarning); err != nil {
+		if err := l.trafficDB.StoreNodeStat(ctx, k, db.DefaultNodeTTL, metric.CountWarning); err != nil {
 			return err
 		}
 		k.Level = db.Bad
-		if err := l.db.StoreNodeStat(ctx, k, db.DefaultNodeTTL, metric.CountBad); err != nil {
+		if err := l.trafficDB.StoreNodeStat(ctx, k, db.DefaultNodeTTL, metric.CountBad); err != nil {
 			return err
 		}
 	}
@@ -113,48 +151,105 @@ func (l *Loader) WatchKeys(ctx context.Context) error {
 	defer fullScan.Stop()
 
 	for {
-		if err := l.refreshTraffic(ctx); err != nil {
+		traffic, err := loadTraffic(ctx, l.trafficDB, l.now())
+		if err != nil {
 			return err
 		}
+		mLog, nodes, err := l.compileState(ctx, traffic)
+		if err != nil {
+			return err
+		}
+		l.setState(mLog, nodes)
+
 		select {
 		case <-fullScan.C:
-		case <-l.db.WaitForChanges():
+		case <-l.trafficDB.WaitForChanges():
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
 }
 
-func (l *Loader) refreshTraffic(ctx context.Context) error {
-	metrics, err := loadAllMetrics(ctx, l.db)
+func loadTraffic(ctx context.Context, trafficDB TrafficDB, now time.Time) (map[db.TrafficKey]RateStats, error) {
+	metrics, err := loadAllMetrics(ctx, trafficDB)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	lastFull := db.GetBucket(l.now()).Previous().Unix()
-
-	var cut int
-	for i, m := range metrics {
-		if m.Timestamp > lastFull {
-			cut = i
-			break
+	lastFull := db.GetBucket(now).Previous()
+	for k := range metrics {
+		if k.Bucket.After(lastFull.Time) {
+			delete(metrics, k)
 		}
 	}
-	if cut > 0 {
-		metrics = metrics[:cut]
-	}
-
-	l.mMu.Lock()
-	defer l.mMu.Unlock()
-	l.metrics = metrics
-	return nil
+	return metrics, nil
 }
 
-func loadAllMetrics(ctx context.Context, ndb TrafficDB) ([]api.Metrics, error) {
+func (l *Loader) loadNode(ctx context.Context, key string, cache map[string]api.NodeInfo) (api.NodeInfo, error) {
+	if ni, in := cache[key]; in {
+		return ni, nil
+	}
+	ni, err := l.nodeDB.GetNode(ctx, key)
+	if err != nil {
+		return api.NodeInfo{}, err
+	}
+	cache[key] = ni
+	return ni, nil
+}
+
+func (l *Loader) compileState(ctx context.Context, traffic map[db.TrafficKey]RateStats) ([]api.Metrics, []api.NodeInfo, error) {
+	cache := make(map[string]api.NodeInfo)
+	mLog := make([]api.Metrics, 0, len(traffic))
+
+	for k, stats := range traffic {
+		from, err := l.loadNode(ctx, k.FromID, cache)
+		if errors.Is(err, db.ErrNodeNotFound) {
+			log.Info(ctx, "skipped node", j.KV("node", k.FromID))
+			continue
+		} else if err != nil {
+			return nil, nil, err
+		}
+		to, err := l.loadNode(ctx, k.ToID, cache)
+		if errors.Is(err, db.ErrNodeNotFound) {
+			log.Info(ctx, "skipped node", j.KV("node", k.ToID))
+			continue
+		} else if err != nil {
+			return nil, nil, err
+		}
+		mLog = append(mLog, api.Metrics{
+			Source:       from.Name,
+			SourceRegion: from.Region,
+			SourceType:   from.Type,
+			Transport:    api.Transport(k.Transport),
+			Target:       to.Name,
+			TargetRegion: to.Region,
+			TargetType:   to.Type,
+			Timestamp:    k.Bucket.Unix(),
+			Duration:     stats.Duration,
+			CountGood:    stats.Good,
+			CountWarning: stats.Warning,
+			CountBad:     stats.Bad,
+		})
+	}
+
+	nodes := make([]api.NodeInfo, 0, len(cache))
+	for _, k := range cache {
+		nodes = append(nodes, k)
+	}
+	return mLog, nodes, nil
+}
+
+func (l *Loader) setState(log []api.Metrics, nodes []api.NodeInfo) {
+	l.mMu.Lock()
+	defer l.mMu.Unlock()
+	l.metrics = log
+	l.nodes = nodes
+}
+
+func loadAllMetrics(ctx context.Context, tdb TrafficDB) (map[db.TrafficKey]RateStats, error) {
 	t0 := time.Now()
 	stats := make(map[db.TrafficKey]RateStats)
-	err := ndb.ScanAllNodeStatKeys(ctx, func(ctx context.Context, key db.TrafficKey) error {
-		val, err := ndb.GetNodeStatCount(ctx, key)
+	err := tdb.ScanAllNodeStatKeys(ctx, func(ctx context.Context, key db.TrafficKey) error {
+		val, err := tdb.GetNodeStatCount(ctx, key)
 		if err != nil {
 			return err
 		}
@@ -170,41 +265,16 @@ func loadAllMetrics(ctx context.Context, ndb TrafficDB) ([]api.Metrics, error) {
 		case db.Bad:
 			s.Bad += val
 		}
+		s.Duration = db.BucketDuration
 		stats[aggrKey] = s
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	var metrics []api.Metrics
-	for k, s := range stats {
-		metrics = append(metrics, api.Metrics{
-			Source:       k.Source,
-			SourceRegion: k.SourceRegion,
-			Transport:    api.Transport(k.Transport),
-			Target:       k.Target,
-			TargetRegion: k.TargetRegion,
-			Timestamp:    k.Bucket.Time.Unix(),
-			Duration:     db.BucketDuration,
-			CountGood:    s.Good,
-			CountWarning: s.Warning,
-			CountBad:     s.Bad,
-		})
-	}
-	sort.Slice(metrics, func(i, j int) bool {
-		if metrics[i].Timestamp != metrics[j].Timestamp {
-			return metrics[i].Timestamp < metrics[j].Timestamp
-		}
-		if metrics[i].Source != metrics[j].Source {
-			return metrics[i].Source < metrics[j].Source
-		}
-		return metrics[i].Target < metrics[j].Target
-	})
-
-	log.Info(ctx, "loaded metrics from database", j.MKV{
-		"count":      len(metrics),
+	log.Info(ctx, "loaded traffic from database", j.MKV{
+		"count":      len(stats),
 		"time_taken": time.Since(t0),
 	})
-	return metrics, nil
+	return stats, err
 }

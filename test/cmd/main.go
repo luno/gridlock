@@ -39,8 +39,6 @@ func main() {
 		deliverForever(ctx, c)
 	}()
 
-	registerNodes(c)
-
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func() {
@@ -58,7 +56,7 @@ var targets = map[string]map[string]int{
 	"internet": {"fe": 1},
 	"fe":       {"console": 3, "exchange": 1, "broker": 5},
 	"broker":   {"kraken": 1, "bitstamp": 1, "broker_db": 1},
-	"exchange": {"exchange_db": 1},
+	"exchange": {"exchange": 1},
 	"console":  {"ethereum": 1},
 }
 
@@ -81,51 +79,32 @@ func randomMethodPath(r *rand.Rand) []gridlock.Method {
 		if target == "" {
 			break
 		}
+		sourceType := api.NodeService
+		if source == "internet" {
+			sourceType = api.NodeInternet
+		}
+		targetType := api.NodeService
 		transport := api.TransportGRPC
-		if strings.HasSuffix(target, "_db") {
+		if strings.HasSuffix(target, "_db") || source == target {
+			targetType = api.NodeDatabase
 			transport = api.TransportSQL
 		}
 		m := gridlock.Method{
 			Source:       source,
 			SourceRegion: ChooseWeighted(r, regions),
+			SourceType:   sourceType,
 			Target:       target,
 			TargetRegion: ChooseWeighted(r, regions),
+			TargetType:   targetType,
 			Transport:    transport,
 		}
 		ret = append(ret, m)
+		if source == target {
+			break
+		}
 		source = target
 	}
 	return ret
-}
-
-func registerNodes(c *gridlock.Client) {
-	done := map[string]struct{}{"internet": {}}
-	todo := []string{"internet"}
-	for len(todo) > 0 {
-		next := todo[0]
-		todo = todo[1:]
-
-		t := api.NodeService
-		if strings.HasSuffix(next, "_db") {
-			t = api.NodeDatabase
-		}
-		for r := range regions {
-			c.RegisterNode(api.NodeInfo{
-				Region:      r,
-				Name:        next,
-				DisplayName: next,
-				Type:        t,
-			})
-		}
-
-		for tgt := range targets[next] {
-			if _, d := done[tgt]; d {
-				continue
-			}
-			todo = append(todo, tgt)
-			done[tgt] = struct{}{}
-		}
-	}
 }
 
 func simulateCalls(ctx context.Context, client *gridlock.Client, seed int64) error {

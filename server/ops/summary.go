@@ -21,7 +21,7 @@ func SummariseTraffic(ml []api.Metrics, ts time.Time) []api.Traffic {
 			From:         m.Source,
 			To:           m.Target,
 			Ts:           m.Timestamp,
-			Duration:     int(db.BucketDuration / time.Second),
+			Duration:     int(db.BucketDuration.Seconds()),
 			CountGood:    m.CountGood,
 			CountWarning: m.CountWarning,
 			CountBad:     m.CountBad,

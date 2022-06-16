@@ -12,10 +12,7 @@ import (
 func GetNodesHandler(d Deps) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		ctx := r.Context()
-		nl, err := d.NodeRegistry().GetNodes(ctx)
-		if err != nil {
-			log.Error(ctx, errors.Wrap(err, "get nodes"))
-		}
+		nl := d.TrafficStats().GetNodes()
 		resp := api.GetNodesResponse{NodeInfo: nl}
 		respBytes, err := json.Marshal(resp)
 		if err != nil {

@@ -10,7 +10,8 @@ import (
 )
 
 type NodeDB interface {
-	RegisterNodes(context.Context, ...api.NodeInfo) error
+	RegisterNode(context.Context, string, api.NodeInfo) error
+	GetNode(context.Context, string) (api.NodeInfo, error)
 	GetNodes(context.Context) ([]api.NodeInfo, error)
 }
 
@@ -18,7 +19,7 @@ type RedisNodeDB struct {
 	pool *redis.Pool
 }
 
-func NewRedisNodeRegistry(p *redis.Pool) RedisNodeDB {
+func NewRedisNodeDB(p *redis.Pool) RedisNodeDB {
 	return RedisNodeDB{pool: p}
 }
 
@@ -40,20 +41,24 @@ func (r RedisNodeDB) closeConnection(ctx context.Context, conn redis.Conn) {
 	}
 }
 
-func (r RedisNodeDB) RegisterNodes(ctx context.Context, nodes ...api.NodeInfo) error {
+func (r RedisNodeDB) RegisterNode(ctx context.Context, key string, n api.NodeInfo) error {
 	c, err := r.getConnection(ctx)
 	if err != nil {
 		return err
 	}
 	defer r.closeConnection(ctx, c)
 
-	for _, n := range nodes {
-		err := db.StoreNode(ctx, c, n)
-		if err != nil {
-			return err
-		}
+	return db.StoreNode(ctx, c, key, n)
+}
+
+func (r RedisNodeDB) GetNode(ctx context.Context, key string) (api.NodeInfo, error) {
+	c, err := r.getConnection(ctx)
+	if err != nil {
+		return api.NodeInfo{}, err
 	}
-	return nil
+	defer r.closeConnection(ctx, c)
+
+	return db.GetNode(ctx, c, key)
 }
 
 func (r RedisNodeDB) GetNodes(ctx context.Context) ([]api.NodeInfo, error) {
@@ -63,32 +68,26 @@ func (r RedisNodeDB) GetNodes(ctx context.Context) ([]api.NodeInfo, error) {
 	}
 	defer r.closeConnection(ctx, c)
 
-	allKeys := make(map[db.NodeKey]bool)
+	var ret []api.NodeInfo
 	var cursor int64
 	for {
-		nkl, next, err := db.GetSomeNodeKeys(ctx, c, cursor)
+		keys, next, err := db.GetSomeNodeKeys(ctx, c, cursor)
 		if err != nil {
 			return nil, err
 		}
-		for _, nk := range nkl {
-			allKeys[nk] = true
+		for _, k := range keys {
+			ni, err := db.GetNode(ctx, c, k)
+			if errors.Is(err, db.ErrNodeNotFound) {
+				continue
+			} else if err != nil {
+				return nil, err
+			}
+			ret = append(ret, ni)
 		}
 		if next == 0 {
 			break
 		}
 		cursor = next
-	}
-
-	ret := make([]api.NodeInfo, 0, len(allKeys))
-	for k := range allKeys {
-		ni, err := db.GetNode(ctx, c, k)
-		// The node could've expired
-		if errors.Is(err, db.ErrNodeNotFound) {
-			continue
-		} else if err != nil {
-			return nil, err
-		}
-		ret = append(ret, ni)
 	}
 	return ret, nil
 }

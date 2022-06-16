@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/db"
+	"github.com/luno/jettison/errors"
 	"sort"
 	"sync"
 	"time"
@@ -63,13 +64,21 @@ func (m *MemDB) WaitForChanges() chan struct{} {
 	return m.c
 }
 
-func (m *MemDB) RegisterNodes(_ context.Context, info ...api.NodeInfo) error {
+func (m *MemDB) RegisterNode(_ context.Context, key string, info api.NodeInfo) error {
 	m.niMu.Lock()
 	defer m.niMu.Unlock()
-	for _, i := range info {
-		m.nodeInfo[i.Name] = i
-	}
+	m.nodeInfo[key] = info
 	return nil
+}
+
+func (m *MemDB) GetNode(_ context.Context, key string) (api.NodeInfo, error) {
+	m.niMu.RLock()
+	defer m.niMu.RUnlock()
+	ni, ok := m.nodeInfo[key]
+	if !ok {
+		return api.NodeInfo{}, errors.Wrap(db.ErrNodeNotFound, "")
+	}
+	return ni, nil
 }
 
 func (m *MemDB) GetNodes(context.Context) ([]api.NodeInfo, error) {
@@ -87,3 +96,4 @@ func (m *MemDB) GetNodes(context.Context) ([]api.NodeInfo, error) {
 }
 
 var _ TrafficDB = (*MemDB)(nil)
+var _ NodeDB = (*MemDB)(nil)

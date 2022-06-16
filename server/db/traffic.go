@@ -25,13 +25,11 @@ const (
 )
 
 type TrafficKey struct {
-	Transport    string
-	SourceRegion string
-	Source       string
-	TargetRegion string
-	Target       string
-	Bucket       Bucket
-	Level        Level
+	FromID    string
+	ToID      string
+	Transport string
+	Bucket    Bucket
+	Level     Level
 }
 
 type Bucket struct {
@@ -47,20 +45,18 @@ func (b Bucket) Next() Bucket {
 }
 
 func trafficKeyFromRedis(s string) (TrafficKey, error) {
-	parts := strings.Split(s, ".")
-	// Handle 6 part keys for a bit
-	if len(parts) == 6 {
-		parts = append([]string{""}, parts...)
+	p := strings.Split(s, ".")
+	if len(p) != 5 {
+		return TrafficKey{}, errors.New("invalid key", j.KV("key", s))
 	}
-	if len(parts) != 7 {
-		return TrafficKey{}, errors.New("invalid number of parts", j.KV("parts", len(parts)))
-	}
-	unix, err := strconv.ParseInt(parts[6], 10, 64)
+	from, to, trans, bucket, level := p[0], p[1], p[2], p[3], p[4]
+
+	unix, err := strconv.ParseInt(bucket, 10, 64)
 	if err != nil {
-		return TrafficKey{}, errors.Wrap(err, "invalid timestamp", j.KV("value", parts[5]))
+		return TrafficKey{}, errors.Wrap(err, "invalid timestamp", j.KV("value", bucket))
 	}
 	b := Bucket{time.Unix(unix, 0)}
-	level := Level(parts[5])
+	l := Level(level)
 	switch level {
 	case Good:
 	case Warning:
@@ -69,22 +65,19 @@ func trafficKeyFromRedis(s string) (TrafficKey, error) {
 		return TrafficKey{}, errors.New("invalid level", j.KV("value", level))
 	}
 	return TrafficKey{
-		Transport:    parts[0],
-		SourceRegion: parts[1], Source: parts[2],
-		TargetRegion: parts[3], Target: parts[4],
-		Bucket: b, Level: level,
+		FromID: from, ToID: to,
+		Transport: trans,
+		Bucket:    b, Level: l,
 	}, nil
 }
 
 func trafficKeyToRedis(k TrafficKey) string {
 	parts := []string{
-		k.SourceRegion, k.Source,
-		k.TargetRegion, k.Target,
-		string(k.Level),
+		k.FromID,
+		k.ToID,
+		k.Transport,
 		strconv.FormatInt(k.Bucket.Unix(), 10),
-	}
-	if k.Transport != "" {
-		parts = append([]string{k.Transport}, parts...)
+		string(k.Level),
 	}
 	return strings.Join(parts, ".")
 }
@@ -118,7 +111,7 @@ func StoreNodeStat(ctx context.Context, conn redis.Conn,
 type HandleNodeStatFunc func(context.Context, TrafficKey) error
 
 func LoadSomeKeys(ctx context.Context, conn redis.Conn, cursor int64) ([]TrafficKey, int64, error) {
-	next, keys, err := scanSomeKeys(ctx, conn, cursor)
+	keys, next, err := scanSomeKeys(ctx, conn, cursor)
 	if err != nil {
 		return nil, 0, err
 	}

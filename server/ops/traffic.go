@@ -21,7 +21,7 @@ type RedisTrafficDB struct {
 	Pool *redis.Pool
 }
 
-func NewRedisNodeDB(p *redis.Pool) RedisTrafficDB {
+func NewRedisTrafficDB(p *redis.Pool) RedisTrafficDB {
 	return RedisTrafficDB{Pool: p}
 }
 
