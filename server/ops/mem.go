@@ -7,12 +7,12 @@ import (
 	"github.com/luno/jettison/errors"
 	"sort"
 	"sync"
-	"time"
 )
 
 type MemDB struct {
-	mu    sync.RWMutex
-	Nodes map[db.TrafficKey]int64
+	mu      sync.RWMutex
+	Nodes   map[db.TrafficKey]int64
+	Buckets map[db.Bucket]map[db.TrafficKey]bool
 
 	niMu     sync.RWMutex
 	nodeInfo map[string]api.NodeInfo
@@ -27,28 +27,13 @@ func NewMemDB() *MemDB {
 	}
 }
 
-func (m *MemDB) GetNodeStatCount(_ context.Context, key db.TrafficKey) (int64, error) {
+func (m *MemDB) GetTrafficStat(_ context.Context, key db.TrafficKey) (int64, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.Nodes[key], nil
 }
 
-func (m *MemDB) ScanAllNodeStatKeys(ctx context.Context, f db.HandleNodeStatFunc) error {
-	m.mu.RLock()
-	nodesCopy := make(map[db.TrafficKey]int64)
-	for key, val := range m.Nodes {
-		nodesCopy[key] = val
-	}
-	m.mu.RUnlock()
-	for key := range nodesCopy {
-		if err := f(ctx, key); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (m *MemDB) StoreNodeStat(_ context.Context, k db.TrafficKey, _ time.Duration, count int64) error {
+func (m *MemDB) StoreTrafficStat(_ context.Context, k db.TrafficKey, count int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.Nodes[k] = count
@@ -56,6 +41,31 @@ func (m *MemDB) StoreNodeStat(_ context.Context, k db.TrafficKey, _ time.Duratio
 	select {
 	case m.c <- struct{}{}:
 	default:
+	}
+	return nil
+}
+
+func (m *MemDB) GetBucket(_ context.Context, bucket db.Bucket) ([]db.TrafficKey, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	b := m.Buckets[bucket]
+	ret := make([]db.TrafficKey, 0, len(b))
+	for k := range b {
+		ret = append(ret, k)
+	}
+	return ret, nil
+}
+
+func (m *MemDB) StoreBucket(_ context.Context, bucket db.Bucket, keys []db.TrafficKey) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	b, ok := m.Buckets[bucket]
+	if !ok {
+		b = make(map[db.TrafficKey]bool)
+		m.Buckets[bucket] = b
+	}
+	for _, k := range keys {
+		b[k] = true
 	}
 	return nil
 }

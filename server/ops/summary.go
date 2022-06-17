@@ -10,7 +10,7 @@ import (
 func SummariseTraffic(ml []api.Metrics, ts time.Time) []api.Traffic {
 	var ret []api.Traffic
 	if !ts.IsZero() {
-		ts = db.GetBucket(ts).Time
+		ts = db.BucketFromTime(ts).Time
 	}
 	for _, m := range ml {
 		buck := time.Unix(m.Timestamp, 0)

@@ -70,58 +70,8 @@ func NewLoader(ctx context.Context, trafficDB TrafficDB, nodeDB NodeDB) *Loader 
 	return l
 }
 
-func (l *Loader) maybeStoreNode(ctx context.Context, node api.NodeInfo) error {
-	id := db.Key(node).ID()
-	_, err := l.nodeDB.GetNode(ctx, id)
-	if errors.Is(err, db.ErrNodeNotFound) {
-		return l.nodeDB.RegisterNode(ctx, id, node)
-	} else if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (l *Loader) Record(ctx context.Context, m ...api.Metrics) error {
-	for _, metric := range m {
-		b := db.GetBucket(time.Unix(metric.Timestamp, 0))
-
-		from := api.NodeInfo{
-			Region: metric.SourceRegion,
-			Type:   metric.SourceType,
-			Name:   metric.Source,
-		}
-		if err := l.maybeStoreNode(ctx, from); err != nil {
-			return err
-		}
-		to := api.NodeInfo{
-			Region: metric.TargetRegion,
-			Type:   metric.TargetType,
-			Name:   metric.Target,
-		}
-		if err := l.maybeStoreNode(ctx, to); err != nil {
-			return err
-		}
-
-		k := db.TrafficKey{
-			FromID: db.Key(from).ID(), ToID: db.Key(to).ID(),
-			Transport: string(metric.Transport),
-			Bucket:    b,
-		}
-
-		k.Level = db.Good
-		if err := l.trafficDB.StoreNodeStat(ctx, k, db.DefaultNodeTTL, metric.CountGood); err != nil {
-			return err
-		}
-		k.Level = db.Warning
-		if err := l.trafficDB.StoreNodeStat(ctx, k, db.DefaultNodeTTL, metric.CountWarning); err != nil {
-			return err
-		}
-		k.Level = db.Bad
-		if err := l.trafficDB.StoreNodeStat(ctx, k, db.DefaultNodeTTL, metric.CountBad); err != nil {
-			return err
-		}
-	}
-	return nil
+	return storeMetrics(ctx, l.trafficDB, l.nodeDB, m)
 }
 
 func (l *Loader) GetMetricLog() []api.Metrics {
@@ -171,16 +121,27 @@ func (l *Loader) WatchKeys(ctx context.Context) error {
 }
 
 func loadTraffic(ctx context.Context, trafficDB TrafficDB, now time.Time) (map[db.TrafficKey]RateStats, error) {
-	metrics, err := loadAllMetrics(ctx, trafficDB)
-	if err != nil {
-		return nil, err
-	}
-	lastFull := db.GetBucket(now).Previous()
-	for k := range metrics {
-		if k.Bucket.After(lastFull.Time) {
-			delete(metrics, k)
+	t0 := time.Now()
+	metrics := make(map[db.TrafficKey]RateStats)
+	last := db.BucketFromTime(now)
+	var count int
+	for _, b := range db.GetBucketsBetween(last.Add(-time.Hour), last.Time) {
+		bMetrics, err := loadBucket(ctx, trafficDB, b)
+		if err != nil {
+			return nil, err
+		}
+		if len(bMetrics) > 0 {
+			count++
+		}
+		for k, stats := range bMetrics {
+			metrics[k] = stats
 		}
 	}
+	log.Info(ctx, "loaded metrics from buckets", j.MKV{
+		"buckets":    count,
+		"metrics":    len(metrics),
+		"time_taken": time.Since(t0),
+	})
 	return metrics, nil
 }
 
@@ -243,38 +204,4 @@ func (l *Loader) setState(log []api.Metrics, nodes []api.NodeInfo) {
 	defer l.mMu.Unlock()
 	l.metrics = log
 	l.nodes = nodes
-}
-
-func loadAllMetrics(ctx context.Context, tdb TrafficDB) (map[db.TrafficKey]RateStats, error) {
-	t0 := time.Now()
-	stats := make(map[db.TrafficKey]RateStats)
-	err := tdb.ScanAllNodeStatKeys(ctx, func(ctx context.Context, key db.TrafficKey) error {
-		val, err := tdb.GetNodeStatCount(ctx, key)
-		if err != nil {
-			return err
-		}
-		aggrKey := key
-		// Zero the level, so we can use it as a key to aggregate RateStats across levels
-		aggrKey.Level = ""
-		s := stats[aggrKey]
-		switch key.Level {
-		case db.Good:
-			s.Good += val
-		case db.Warning:
-			s.Warning += val
-		case db.Bad:
-			s.Bad += val
-		}
-		s.Duration = db.BucketDuration
-		stats[aggrKey] = s
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	log.Info(ctx, "loaded traffic from database", j.MKV{
-		"count":      len(stats),
-		"time_taken": time.Since(t0),
-	})
-	return stats, err
 }

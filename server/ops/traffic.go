@@ -6,15 +6,16 @@ import (
 	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/log"
-	"time"
 )
 
 type TrafficDB interface {
 	WaitForChanges() chan struct{}
 
-	GetNodeStatCount(ctx context.Context, key db.TrafficKey) (int64, error)
-	ScanAllNodeStatKeys(ctx context.Context, f db.HandleNodeStatFunc) error
-	StoreNodeStat(ctx context.Context, k db.TrafficKey, ttl time.Duration, count int64) error
+	GetTrafficStat(ctx context.Context, key db.TrafficKey) (int64, error)
+	StoreTrafficStat(ctx context.Context, k db.TrafficKey, count int64) error
+
+	GetBucket(ctx context.Context, bucket db.Bucket) ([]db.TrafficKey, error)
+	StoreBucket(ctx context.Context, bucket db.Bucket, keys []db.TrafficKey) error
 }
 
 type RedisTrafficDB struct {
@@ -47,65 +48,40 @@ func (r RedisTrafficDB) WaitForChanges() chan struct{} {
 	return make(chan struct{})
 }
 
-func (r RedisTrafficDB) GetNodeStatCount(ctx context.Context, key db.TrafficKey) (int64, error) {
+func (r RedisTrafficDB) GetTrafficStat(ctx context.Context, key db.TrafficKey) (int64, error) {
 	c, err := r.getConnection(ctx)
 	if err != nil {
 		return 0, err
 	}
 	defer r.closeConnection(ctx, c)
-	return db.GetNodeStatCount(ctx, c, key)
+	return db.GetTrafficStat(ctx, c, key)
 }
 
-func (r RedisTrafficDB) ScanAllNodeStatKeys(ctx context.Context, f db.HandleNodeStatFunc) error {
-	cur := redisCursor{rn: r}
-	for cur.More() {
-		keys, err := cur.LoadSomeKeys(ctx)
-		if err != nil {
-			return err
-		}
-		for _, key := range keys {
-			err := f(ctx, key)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (r RedisTrafficDB) StoreNodeStat(ctx context.Context, k db.TrafficKey, ttl time.Duration, count int64) error {
+func (r RedisTrafficDB) StoreTrafficStat(ctx context.Context, k db.TrafficKey, count int64) error {
 	c, err := r.getConnection(ctx)
 	if err != nil {
 		return err
 	}
 	defer r.closeConnection(ctx, c)
-	return db.StoreNodeStat(ctx, c, k, ttl, count)
+	return db.StoreTrafficStat(ctx, c, k, db.DefaultNodeTTL, count)
 }
 
-type redisCursor struct {
-	rn      RedisTrafficDB
-	Cursor  int64
-	Started bool
-}
-
-func (c *redisCursor) LoadSomeKeys(ctx context.Context) ([]db.TrafficKey, error) {
-	conn, err := c.rn.getConnection(ctx)
+func (r RedisTrafficDB) GetBucket(ctx context.Context, bucket db.Bucket) ([]db.TrafficKey, error) {
+	c, err := r.getConnection(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer c.rn.closeConnection(ctx, conn)
-
-	keys, next, err := db.LoadSomeKeys(ctx, conn, c.Cursor)
-	if err != nil {
-		return nil, err
-	}
-	c.Cursor = next
-	c.Started = true
-	return keys, nil
+	defer r.closeConnection(ctx, c)
+	return db.GetBucket(ctx, c, bucket)
 }
 
-func (c redisCursor) More() bool {
-	return !c.Started || c.Cursor != 0
+func (r RedisTrafficDB) StoreBucket(ctx context.Context, bucket db.Bucket, keys []db.TrafficKey) error {
+	c, err := r.getConnection(ctx)
+	if err != nil {
+		return err
+	}
+	defer r.closeConnection(ctx, c)
+	return db.StoreBucket(ctx, c, bucket, keys, db.DefaultNodeTTL)
 }
 
 var _ TrafficDB = (*RedisTrafficDB)(nil)
