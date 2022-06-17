@@ -30,7 +30,10 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	c := gridlock.NewClient(gridlock.WithBaseURL("http://localhost/gridlock"))
+	c := gridlock.NewClient(
+		gridlock.WithBaseURL("http://localhost/gridlock"),
+		gridlock.WithFlushPeriod(time.Second),
+	)
 
 	var wg sync.WaitGroup
 	wg.Add(1)

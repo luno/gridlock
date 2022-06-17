@@ -34,6 +34,7 @@ type Client struct {
 	baseURL string
 	cli     *http.Client
 	metrics Metrics
+	now     func() time.Time
 
 	defaultMethod Method
 
@@ -105,6 +106,7 @@ func WithMetrics(m Metrics) ClientOption {
 func NewClient(opts ...ClientOption) *Client {
 	ret := &Client{
 		cli:         http.DefaultClient,
+		now:         time.Now,
 		flushChan:   make(chan chan error, 1),
 		flushPeriod: 20 * time.Second,
 		reqTimeout:  30 * time.Second,
@@ -126,14 +128,21 @@ type incCall struct {
 	Done    chan struct{}
 }
 
-type aggregate map[Method]CallAggregate
+type aggregate struct {
+	Calls   map[Method]CallAggregate
+	Started time.Time
+	Ended   time.Time
+}
 
-func (a *aggregate) Reset() {
-	*a = make(aggregate)
+func newAggregate(ts time.Time) aggregate {
+	return aggregate{
+		Calls:   make(map[Method]CallAggregate),
+		Started: ts,
+	}
 }
 
 func (a aggregate) Record(m Method, s CallSuccess) {
-	l := a[m]
+	l := a.Calls[m]
 	switch s {
 	case CallGood:
 		l[0]++
@@ -142,7 +151,11 @@ func (a aggregate) Record(m Method, s CallSuccess) {
 	case CallBad:
 		l[2]++
 	}
-	a[m] = l
+	a.Calls[m] = l
+}
+
+func (a *aggregate) Close(ts time.Time) {
+	a.Ended = ts
 }
 
 func (c *Client) Record(m Method, s CallSuccess) chan struct{} {
@@ -171,7 +184,17 @@ func (c *Client) Deliver(ctx context.Context) error {
 	t := time.NewTicker(c.flushPeriod)
 	defer t.Stop()
 
-	agg := make(aggregate)
+	flush := func(ctx context.Context, agg aggregate, ch chan<- error) aggregate {
+		ts := c.now()
+		agg.Close(ts)
+		go func() {
+			ch <- c.sendBatch(ctx, agg)
+		}()
+		return newAggregate(ts)
+	}
+	agg := newAggregate(c.now())
+
+	sendErrors := make(chan error)
 	for {
 		select {
 		case <-ctx.Done():
@@ -180,11 +203,13 @@ func (c *Client) Deliver(ctx context.Context) error {
 			agg.Record(call.M, call.Success)
 			close(call.Done)
 		case <-t.C:
-			if err := c.send(ctx, &agg); err != nil {
+			agg = flush(ctx, agg, sendErrors)
+		case err := <-sendErrors:
+			if err != nil {
 				return err
 			}
 		case ch := <-c.flushChan:
-			ch <- c.send(ctx, &agg)
+			agg = flush(ctx, agg, ch)
 		}
 	}
 }
@@ -230,18 +255,17 @@ func (c *Client) do(ctx context.Context, method, url string, body io.Reader) (*h
 	return nil, errors.New("failed to submit", j.MKV{"response": s})
 }
 
-func (c *Client) send(ctx context.Context, a *aggregate) error {
-	if len(*a) == 0 {
+func (c *Client) sendBatch(ctx context.Context, a aggregate) error {
+	if len(a.Calls) == 0 {
 		return nil
 	}
-	defer a.Reset()
 
-	start := time.Now()
-	ts := start.Unix()
+	t0 := time.Now()
+	dur := a.Ended.Sub(a.Started)
 
 	var sub api.SubmitMetrics
 	var total int64
-	for method, calls := range *a {
+	for method, calls := range a.Calls {
 		sub.Metrics = append(sub.Metrics, api.Metrics{
 			Source:       method.Source,
 			SourceRegion: method.SourceRegion,
@@ -250,7 +274,8 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 			TargetRegion: method.TargetRegion,
 			TargetType:   method.TargetType,
 			Transport:    method.Transport,
-			Timestamp:    ts,
+			Timestamp:    a.Started.Unix(),
+			Duration:     dur,
 			CountGood:    calls[0],
 			CountWarning: calls[1],
 			CountBad:     calls[2],
@@ -267,7 +292,7 @@ func (c *Client) send(ctx context.Context, a *aggregate) error {
 		c.metrics.SubmissionErrors.Inc()
 		return err
 	}
-	c.metrics.SubmissionLatency.Observe(time.Since(start).Seconds())
+	c.metrics.SubmissionLatency.Observe(time.Since(t0).Seconds())
 	c.metrics.SubmittedCalls.Add(float64(total))
 	return nil
 }
