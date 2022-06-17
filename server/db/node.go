@@ -19,7 +19,9 @@ func StoreNode(ctx context.Context, conn redis.Conn, key string, info api.NodeIn
 	if err != nil {
 		return err
 	}
-	_, err = redis.DoContext(conn, ctx, "SET", key, b, "EX", int(nodeTTL.Seconds()))
+	_, err = redis.DoContext(conn, ctx,
+		"SET", key, b, "EX", int(nodeTTL.Seconds()),
+	)
 	return errors.Wrap(err, "store node")
 }
 
@@ -28,7 +30,9 @@ func GetSomeNodeKeys(ctx context.Context, conn redis.Conn, cursor int64) ([]stri
 }
 
 func GetNode(ctx context.Context, conn redis.Conn, key string) (api.NodeInfo, error) {
-	v, err := redis.Bytes(redis.DoContext(conn, ctx, "GET", key))
+	v, err := redis.Bytes(redis.DoContext(conn, ctx,
+		"GETEX", key, "EX", int(nodeTTL.Seconds()),
+	))
 	if errors.Is(err, redis.ErrNil) {
 		return api.NodeInfo{}, errors.Wrap(ErrNodeNotFound, "")
 	} else if err != nil {

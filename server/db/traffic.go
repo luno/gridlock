@@ -99,12 +99,16 @@ func StoreNodeStat(ctx context.Context, conn redis.Conn,
 	count int64,
 ) error {
 	key := trafficKeyToRedis(k)
-	_, err := redis.DoContext(conn, ctx, "INCRBY", key, count)
+	_, err := redis.DoContext(conn, ctx,
+		"INCRBY", key, count,
+	)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 	expire := k.Bucket.Add(ttl)
-	_, err = redis.DoContext(conn, ctx, "EXPIREAT", key, expire.Unix())
+	_, err = redis.DoContext(conn, ctx,
+		"EXPIREAT", key, expire.Unix(),
+	)
 	return errors.Wrap(err, "")
 }
 
@@ -128,6 +132,8 @@ func LoadSomeKeys(ctx context.Context, conn redis.Conn, cursor int64) ([]Traffic
 }
 
 func GetNodeStatCount(ctx context.Context, conn redis.Conn, key TrafficKey) (int64, error) {
-	i, err := redis.Int64(redis.DoContext(conn, ctx, "GET", trafficKeyToRedis(key)))
+	i, err := redis.Int64(redis.DoContext(conn, ctx,
+		"GET", trafficKeyToRedis(key),
+	))
 	return i, errors.Wrap(err, "")
 }
