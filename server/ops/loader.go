@@ -100,12 +100,13 @@ func (l *Loader) WatchKeys(ctx context.Context) error {
 	fullScan := time.NewTicker(time.Minute)
 	defer fullScan.Stop()
 
+	bucketCache := make(map[db.Bucket]BucketTraffic)
 	for {
-		traffic, err := loadTraffic(ctx, l.trafficDB, l.now())
+		err := loadTraffic(ctx, l.trafficDB, bucketCache, l.now())
 		if err != nil {
 			return err
 		}
-		mLog, nodes, err := l.compileState(ctx, traffic)
+		mLog, nodes, err := l.compileState(ctx, bucketCache)
 		if err != nil {
 			return err
 		}
@@ -120,29 +121,34 @@ func (l *Loader) WatchKeys(ctx context.Context) error {
 	}
 }
 
-func loadTraffic(ctx context.Context, trafficDB TrafficDB, now time.Time) (map[db.TrafficKey]RateStats, error) {
+func loadTraffic(ctx context.Context, trafficDB TrafficDB, buckets map[db.Bucket]BucketTraffic, now time.Time) error {
+	for b := range buckets {
+		if b.Sub(now) > time.Hour {
+			delete(buckets, b)
+		}
+	}
 	t0 := time.Now()
-	metrics := make(map[db.TrafficKey]RateStats)
 	last := db.BucketFromTime(now)
 	var count int
 	for _, b := range db.GetBucketsBetween(last.Add(-time.Hour), last.Time) {
+		if _, has := buckets[b]; has {
+			continue
+		}
 		bMetrics, err := loadBucket(ctx, trafficDB, b)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if len(bMetrics) > 0 {
 			count++
 		}
-		for k, stats := range bMetrics {
-			metrics[k] = stats
-		}
+		buckets[b] = bMetrics
 	}
 	log.Info(ctx, "loaded metrics from buckets", j.MKV{
 		"buckets":    count,
-		"metrics":    len(metrics),
 		"time_taken": time.Since(t0),
 	})
-	return metrics, nil
+
+	return nil
 }
 
 func (l *Loader) loadNode(ctx context.Context, key string, cache map[string]api.NodeInfo) (api.NodeInfo, error) {
@@ -157,39 +163,41 @@ func (l *Loader) loadNode(ctx context.Context, key string, cache map[string]api.
 	return ni, nil
 }
 
-func (l *Loader) compileState(ctx context.Context, traffic map[db.TrafficKey]RateStats) ([]api.Metrics, []api.NodeInfo, error) {
+func (l *Loader) compileState(ctx context.Context, buckets map[db.Bucket]BucketTraffic) ([]api.Metrics, []api.NodeInfo, error) {
 	cache := make(map[string]api.NodeInfo)
-	mLog := make([]api.Metrics, 0, len(traffic))
+	var mLog []api.Metrics
 
-	for k, stats := range traffic {
-		from, err := l.loadNode(ctx, k.FromID, cache)
-		if errors.Is(err, db.ErrNodeNotFound) {
-			log.Info(ctx, "skipped node", j.KV("node", k.FromID))
-			continue
-		} else if err != nil {
-			return nil, nil, err
+	for _, traffic := range buckets {
+		for k, stats := range traffic {
+			from, err := l.loadNode(ctx, k.FromID, cache)
+			if errors.Is(err, db.ErrNodeNotFound) {
+				log.Info(ctx, "skipped node", j.KV("node", k.FromID))
+				continue
+			} else if err != nil {
+				return nil, nil, err
+			}
+			to, err := l.loadNode(ctx, k.ToID, cache)
+			if errors.Is(err, db.ErrNodeNotFound) {
+				log.Info(ctx, "skipped node", j.KV("node", k.ToID))
+				continue
+			} else if err != nil {
+				return nil, nil, err
+			}
+			mLog = append(mLog, api.Metrics{
+				Source:       from.Name,
+				SourceRegion: from.Region,
+				SourceType:   from.Type,
+				Transport:    api.Transport(k.Transport),
+				Target:       to.Name,
+				TargetRegion: to.Region,
+				TargetType:   to.Type,
+				Timestamp:    k.Bucket.Unix(),
+				Duration:     stats.Duration,
+				CountGood:    stats.Good,
+				CountWarning: stats.Warning,
+				CountBad:     stats.Bad,
+			})
 		}
-		to, err := l.loadNode(ctx, k.ToID, cache)
-		if errors.Is(err, db.ErrNodeNotFound) {
-			log.Info(ctx, "skipped node", j.KV("node", k.ToID))
-			continue
-		} else if err != nil {
-			return nil, nil, err
-		}
-		mLog = append(mLog, api.Metrics{
-			Source:       from.Name,
-			SourceRegion: from.Region,
-			SourceType:   from.Type,
-			Transport:    api.Transport(k.Transport),
-			Target:       to.Name,
-			TargetRegion: to.Region,
-			TargetType:   to.Type,
-			Timestamp:    k.Bucket.Unix(),
-			Duration:     stats.Duration,
-			CountGood:    stats.Good,
-			CountWarning: stats.Warning,
-			CountBad:     stats.Bad,
-		})
 	}
 
 	nodes := make([]api.NodeInfo, 0, len(cache))

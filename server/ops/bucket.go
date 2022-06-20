@@ -5,7 +5,9 @@ import (
 	"github.com/luno/gridlock/server/db"
 )
 
-func loadBucket(ctx context.Context, trafficDB TrafficDB, bucket db.Bucket) (map[db.TrafficKey]RateStats, error) {
+type BucketTraffic map[db.TrafficKey]RateStats
+
+func loadBucket(ctx context.Context, trafficDB TrafficDB, bucket db.Bucket) (BucketTraffic, error) {
 	keys, err := trafficDB.GetBucket(ctx, bucket)
 	if err != nil {
 		return nil, err
