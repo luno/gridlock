@@ -17,33 +17,6 @@ type TrafficStats interface {
 	GetNodes() []api.NodeInfo
 }
 
-type RateStats struct {
-	Good     int64
-	Warning  int64
-	Bad      int64
-	Duration time.Duration
-}
-
-func (s RateStats) Add(o RateStats) RateStats {
-	s.Good += o.Good
-	s.Warning += o.Warning
-	s.Bad += o.Bad
-	s.Duration += o.Duration
-	return s
-}
-
-func (s RateStats) GoodRate() float64 {
-	return float64(s.Good) / s.Duration.Seconds()
-}
-
-func (s RateStats) WarningRate() float64 {
-	return float64(s.Warning) / s.Duration.Seconds()
-}
-
-func (s RateStats) BadRate() float64 {
-	return float64(s.Bad) / s.Duration.Seconds()
-}
-
 type Loader struct {
 	trafficDB TrafficDB
 	nodeDB    NodeDB

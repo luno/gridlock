@@ -23,7 +23,8 @@ func TestClientSubmitsMetrics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	s := state{Log: ops.NewLoader(ctx, ops.NewMemDB())}
+	db := ops.NewMemDB()
+	s := state{Log: ops.NewLoader(ctx, db, db)}
 
 	srv := httptest.NewServer(handlers.CreateRouter(ctx, s))
 	t.Cleanup(srv.Close)

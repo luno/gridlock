@@ -3,6 +3,8 @@ package ops
 import (
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/api/vizceral"
+	"github.com/luno/gridlock/server/ops/config"
+	"github.com/luno/gridlock/server/ops/graph"
 	"time"
 )
 
@@ -16,82 +18,79 @@ func createNode(name, display string, rend vizceral.NodeRenderer, ts int64) vizc
 	}
 }
 
-func CompileVizceralGraph(ml []api.Metrics, from, to time.Time) vizceral.Node {
-	g := NewGraph()
-	fromTs := from.Unix()
-	toTs := to.Unix()
-	var last int64
-	for _, m := range ml {
-		if m.Timestamp > last {
-			last = m.Timestamp
-		}
-		add := m.Timestamp >= fromTs && m.Timestamp <= toTs
-		g.AddMetric(m, add)
+func compileNode(node graph.Node, tInc graph.TimeInclusionFunc) vizceral.Node {
+	ret := vizceral.Node{
+		Name:        node.Name(),
+		DisplayName: node.DisplayName(),
 	}
 
-	internet := createNode("INTERNET", "INTERNET", vizceral.RendererRegion, last)
-	root := vizceral.Node{
-		Renderer:         vizceral.RendererGlobal,
-		Name:             "edge",
-		ServerUpdateTime: last,
-		Nodes:            []vizceral.Node{internet},
-		Connections:      []vizceral.Connection{},
+	switch node.Type() {
+	case graph.NodeGroup:
+		fallthrough
+	case graph.NodeRegion:
+		ret.Renderer = vizceral.RendererRegion
+	case graph.NodeGlobal:
+		ret.Renderer = vizceral.RendererGlobal
+	default:
+		ret.Renderer = vizceral.RendererFocusedChild
 	}
 
-	for regionName, region := range g.Regions {
-		rn := createNode(regionName, regionName, vizceral.RendererRegion, last)
+	switch node.Type() {
+	case graph.NodeGroup:
+		ret.NodeType = vizceral.NodeService
+	case graph.NodeDatabase:
+		ret.NodeType = vizceral.NodeStorage
+	case graph.NodeUser:
+		ret.NodeType = vizceral.NodeUsers
+	}
 
-		for node, traffic := range region.Nodes {
-			n := createNode(node.NodeName(), node.Name, vizceral.RendererFocusedChild, last)
-			switch node.Type {
-			case api.NodeDatabase:
-				n.NodeType = vizceral.NodeStorage
-			case api.NodeInternet:
-				n.NodeType = vizceral.NodeUsers
-			}
-			rn.Nodes = append(rn.Nodes, n)
+	for _, n := range node.GetNodes() {
+		ret.Nodes = append(ret.Nodes, compileNode(n, tInc))
+	}
 
-			for target, stats := range traffic.Outgoing {
-				rn.Connections = append(rn.Connections, vizceral.Connection{
-					Source: node.NodeName(),
-					Target: target.NodeName(),
-					Metrics: vizceral.Metrics{
-						Normal:  stats.GoodRate(),
-						Warning: stats.WarningRate(),
-						Danger:  stats.BadRate(),
-					},
-				})
-				this := stats.GoodRate() + stats.WarningRate() + stats.BadRate()
-				if this > rn.MaxVolume {
-					rn.MaxVolume = this
-				}
+	var lastUpdate time.Time
+
+	for _, t := range node.GetTraffic() {
+		max := t.Traffic.Max()
+		if !max.IsZero() {
+			vol := max.GoodRate() + max.WarningRate() + max.BadRate()
+			if vol > ret.MaxVolume {
+				ret.MaxVolume = vol
 			}
 		}
-
-		for targetRegion, s := range region.Cross {
-			root.Connections = append(root.Connections, vizceral.Connection{
-				Source: regionName,
-				Target: targetRegion,
-				Metrics: vizceral.Metrics{
-					Normal:  s.GoodRate(),
-					Warning: s.WarningRate(),
-					Danger:  s.BadRate(),
-				},
-			})
+		last := t.Traffic.LastTimestamp()
+		if last.After(lastUpdate) {
+			lastUpdate = last
 		}
-		root.Nodes = append(root.Nodes, rn)
-	}
 
-	for region, s := range g.Incoming {
-		root.Connections = append(root.Connections, vizceral.Connection{
-			Source: "INTERNET",
-			Target: region,
-			Metrics: vizceral.Metrics{
-				Normal:  s.GoodRate(),
-				Warning: s.WarningRate(),
-				Danger:  s.BadRate(),
+		stats := t.Traffic.Summary(tInc)
+		if stats.IsZero() {
+			continue
+		}
+		m := vizceral.Metrics{
+			Normal:  stats.GoodRate(),
+			Warning: stats.WarningRate(),
+			Danger:  stats.BadRate(),
+		}
+		ret.MaxVolume += m.Normal + m.Warning + m.Danger
+		ret.Connections = append(ret.Connections,
+			vizceral.Connection{
+				Source:  t.From,
+				Target:  t.To,
+				Metrics: m,
 			},
-		})
+		)
 	}
-	return root
+	ret.ServerUpdateTime = lastUpdate.Unix()
+
+	return ret
+}
+
+func CompileVizceralGraph(ml []api.Metrics, from, to time.Time) vizceral.Node {
+	g := graph.ConstructGraph(
+		graph.Builder{Config: config.GetConfig()},
+		ml,
+	)
+	r := graph.Range{From: from, To: to}
+	return compileNode(g, r.Include)
 }

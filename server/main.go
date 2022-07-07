@@ -6,6 +6,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/luno/gridlock/server/handlers"
 	"github.com/luno/gridlock/server/ops"
+	"github.com/luno/gridlock/server/ops/config"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
 	jlog "github.com/luno/jettison/log"
@@ -29,6 +30,7 @@ func (s state) TrafficStats() ops.TrafficStats {
 func main() {
 	InitLogging()
 	flag.Parse()
+	config.MustLoadConfig()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()

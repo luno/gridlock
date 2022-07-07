@@ -1,0 +1,10 @@
+groups:
+  - name: "broker"
+    selectors:
+      - name: "broker"
+      - name: "kraken"
+      - name: "bitstamp"
+      - name: "broker_db"
+  - name: "exchange"
+    selectors:
+      - name: "exchange"

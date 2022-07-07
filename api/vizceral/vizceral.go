@@ -11,8 +11,10 @@ const (
 type NodeRenderer string
 
 const (
+	RendererDNS          NodeRenderer = "dns"
 	RendererGlobal       NodeRenderer = "global"
 	RendererRegion       NodeRenderer = "region"
+	RendererFocused      NodeRenderer = "focused"
 	RendererFocusedChild NodeRenderer = "focusedChild"
 )
 

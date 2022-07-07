@@ -3,16 +3,17 @@ package ops
 import (
 	"context"
 	"github.com/luno/gridlock/server/db"
+	"github.com/luno/gridlock/server/ops/graph"
 )
 
-type BucketTraffic map[db.TrafficKey]RateStats
+type BucketTraffic map[db.TrafficKey]graph.RateStats
 
 func loadBucket(ctx context.Context, trafficDB TrafficDB, bucket db.Bucket) (BucketTraffic, error) {
 	keys, err := trafficDB.GetBucket(ctx, bucket)
 	if err != nil {
 		return nil, err
 	}
-	agg := make(map[db.TrafficKey]RateStats)
+	agg := make(map[db.TrafficKey]graph.RateStats)
 	for _, k := range keys {
 		count, err := trafficDB.GetTrafficStat(ctx, k)
 		if err != nil {
