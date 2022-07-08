@@ -18,7 +18,7 @@ func compileNode(node graph.Node, tInc graph.TimeInclusionFunc) vizceral.Node {
 	case graph.NodeGroup:
 		ret.Renderer = vizceral.RendererRegion
 	case graph.NodeRegion:
-		ret.Renderer = vizceral.RendererGlobal
+		ret.Renderer = vizceral.RendererRegion
 	case graph.NodeGlobal:
 		ret.Renderer = vizceral.RendererGlobal
 	default:
