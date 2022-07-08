@@ -36,5 +36,34 @@ groups:
 			assert.Equal(t, tc.expConfig, c)
 		})
 	}
+}
 
+func TestMatchWildcard(t *testing.T) {
+	testCases := []struct {
+		name     string
+		s        string
+		match    string
+		expMatch bool
+	}{
+		{name: "empty doesn't match exact", s: "", match: "one", expMatch: false},
+		{name: "empty doesn't match partial wildcard", s: "", match: "one*", expMatch: false},
+		{name: "empty matches empty", s: "", match: "", expMatch: true},
+		{name: "empty matches *", s: "", match: "*", expMatch: true},
+		{name: "exact match", s: "one", match: "one", expMatch: true},
+		{name: "exact match on partial wildcard", s: "one", match: "one*", expMatch: true},
+		{name: "exact match on multiple wildcard", s: "one", match: "one********", expMatch: true},
+		{name: "exact non-match", s: "two", match: "one", expMatch: false},
+		{name: "prefix match", s: "helloworld", match: "hell*", expMatch: true},
+		{name: "prefix non-match", s: "helpme", match: "hell*", expMatch: false},
+		{name: "middle match", s: "onetwothree", match: "*two*", expMatch: true},
+		{name: "middle match with many wildcards", s: "onetwothree", match: "******two******", expMatch: true},
+		{name: "multiple middle match", s: "onetwothreefourfive", match: "*two*four*", expMatch: true},
+		{name: "partial match", s: "onetwothreeflourfive", match: "*two*four*", expMatch: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expMatch, matchWildcard(tc.s, tc.match))
+		})
+	}
 }

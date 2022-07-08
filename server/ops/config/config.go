@@ -5,6 +5,7 @@ import (
 	"github.com/luno/gridlock/api"
 	"gopkg.in/yaml.v3"
 	"os"
+	"strings"
 )
 
 var configFile = flag.String("config", "", "path to a config yaml")
@@ -32,11 +33,31 @@ type Selector struct {
 	Type string `yaml:"type"`
 }
 
+func matchWildcard(s string, match string) bool {
+	if match == "" {
+		return true
+	}
+	for i, sub := range strings.Split(match, "*") {
+		if i == 0 && !strings.HasPrefix(s, sub) {
+			return false
+		}
+		mIdx := strings.Index(s, sub)
+		if mIdx == -1 {
+			return false
+		}
+		s = s[mIdx+len(sub):]
+	}
+	if len(s) == 0 || match[len(match)-1] == '*' {
+		return true
+	}
+	return false
+}
+
 func (s Selector) MatchNode(name string, typ api.NodeType) bool {
-	if s.Name != "*" && s.Name != "" && s.Name != name {
+	if !matchWildcard(name, s.Name) {
 		return false
 	}
-	if s.Type != "*" && s.Type != "" && s.Type != string(typ) {
+	if !matchWildcard(string(typ), s.Type) {
 		return false
 	}
 	return true

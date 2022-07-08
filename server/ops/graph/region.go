@@ -18,7 +18,7 @@ func (r Region) Name() string {
 	return r.name
 }
 
-func (r Region) NodeType() NodeType {
+func (r Region) Type() NodeType {
 	return NodeRegion
 }
 
@@ -38,7 +38,7 @@ func (r Region) getNode(name string, typ api.NodeType, groups []config.Group) No
 			return r.getGroup(g.Name)
 		}
 	}
-	return r.Group.getNode(name, typ)
+	return r.getGroup(name)
 }
 
 func (r Region) EnsureNode(b Builder, region, name string, typ api.NodeType) {

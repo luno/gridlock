@@ -5,6 +5,7 @@ groups:
       - name: "kraken"
       - name: "bitstamp"
       - name: "broker_db"
+
   - name: "exchange"
     selectors:
       - name: "exchange"

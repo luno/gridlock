@@ -8,16 +8,6 @@ import (
 	"time"
 )
 
-func createNode(name, display string, rend vizceral.NodeRenderer, ts int64) vizceral.Node {
-	return vizceral.Node{
-		Class:       vizceral.ClassNormal,
-		Name:        name,
-		DisplayName: display,
-		Renderer:    rend,
-		Updated:     ts,
-	}
-}
-
 func compileNode(node graph.Node, tInc graph.TimeInclusionFunc) vizceral.Node {
 	ret := vizceral.Node{
 		Name:        node.Name(),
@@ -26,9 +16,9 @@ func compileNode(node graph.Node, tInc graph.TimeInclusionFunc) vizceral.Node {
 
 	switch node.Type() {
 	case graph.NodeGroup:
-		fallthrough
-	case graph.NodeRegion:
 		ret.Renderer = vizceral.RendererRegion
+	case graph.NodeRegion:
+		ret.Renderer = vizceral.RendererGlobal
 	case graph.NodeGlobal:
 		ret.Renderer = vizceral.RendererGlobal
 	default:
