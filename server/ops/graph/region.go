@@ -33,6 +33,9 @@ func (r Region) getGroup(name string) Node {
 }
 
 func (r Region) getNode(name string, typ api.NodeType, groups []config.Group) Node {
+	if typ == api.NodeInternet {
+		return getInternetNode(r.nodes)
+	}
 	for _, g := range groups {
 		if g.MatchNode(name, typ) {
 			return r.getGroup(g.Name)
@@ -54,9 +57,6 @@ func (r Region) AddTraffic(b Builder,
 	srcRegion, srcName string, srcType api.NodeType,
 	tgtRegion, tgtName string, tgtType api.NodeType,
 ) {
-	if srcType == api.NodeInternet || tgtType == api.NodeInternet {
-		panic("wtf")
-	}
 	src := r.getNode(srcName, srcType, b.Config.Groups)
 	tgt := r.getNode(tgtName, tgtType, b.Config.Groups)
 

@@ -65,6 +65,9 @@ func (g Group) GetNodes() map[string]Node {
 }
 
 func (g Group) getNode(name string, typ api.NodeType) Node {
+	if typ == api.NodeInternet {
+		return getInternetNode(g.nodes)
+	}
 	s := formatNode(name, typ)
 	n, ok := g.nodes[s]
 	if !ok {

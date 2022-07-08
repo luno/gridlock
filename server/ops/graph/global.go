@@ -23,6 +23,15 @@ func (i Internet) Type() NodeType {
 	return NodeUser
 }
 
+func getInternetNode(nodes map[string]Node) Node {
+	n, ok := nodes[InternetLabel]
+	if !ok {
+		n = Internet{}
+		nodes[InternetLabel] = n
+	}
+	return n
+}
+
 type Global struct {
 	nodes   map[string]Node
 	traffic NodeTraffic
@@ -66,9 +75,7 @@ func (g Global) getRegion(region string) Node {
 
 func (g Global) EnsureNode(b Builder, region string, name string, typ api.NodeType) {
 	if typ == api.NodeInternet {
-		if _, ok := g.nodes[InternetLabel]; !ok {
-			g.nodes[InternetLabel] = Internet{}
-		}
+		getInternetNode(g.nodes)
 		return
 	}
 	n := g.getRegion(region)
@@ -82,10 +89,8 @@ func (g Global) AddTraffic(b Builder,
 ) {
 	if srcType == api.NodeInternet {
 		g.traffic.Add(InternetLabel, tgtRegion, t, s)
-		return
 	} else if tgtType == api.NodeInternet {
 		g.traffic.Add(srcRegion, InternetLabel, t, s)
-		return
 	} else if srcRegion != tgtRegion {
 		g.traffic.Add(srcRegion, tgtRegion, t, s)
 		return
