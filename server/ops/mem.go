@@ -22,6 +22,7 @@ type MemDB struct {
 func NewMemDB() *MemDB {
 	return &MemDB{
 		Nodes:    make(map[db.TrafficKey]int64),
+		Buckets:  make(map[db.Bucket]map[db.TrafficKey]bool),
 		c:        make(chan struct{}, 1),
 		nodeInfo: make(map[string]api.NodeInfo),
 	}

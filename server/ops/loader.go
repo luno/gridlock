@@ -96,7 +96,7 @@ func (l *Loader) WatchKeys(ctx context.Context) error {
 
 func loadTraffic(ctx context.Context, trafficDB TrafficDB, buckets map[db.Bucket]BucketTraffic, now time.Time) error {
 	for b := range buckets {
-		if b.Sub(now) > time.Hour {
+		if now.Sub(b.Time) > time.Hour {
 			delete(buckets, b)
 		}
 	}
