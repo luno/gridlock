@@ -17,7 +17,7 @@ import (
 func deliverForever(ctx context.Context, c *gridlock.Client) {
 	for {
 		err := c.Deliver(ctx)
-		if errors.IsAny(err, context.Canceled, context.DeadlineExceeded) {
+		if errors.IsAny(err, context.Canceled) {
 			return
 		} else if err != nil {
 			log.Error(ctx, err)

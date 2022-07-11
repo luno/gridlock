@@ -7,8 +7,10 @@ import (
 	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
+	"github.com/luno/jettison/log"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -44,6 +46,8 @@ type Client struct {
 
 	q chan incCall
 }
+
+var errRetryable = errors.New("", j.C("ERR_43d3926acd268ae8"))
 
 type ClientOption func(*Client)
 
@@ -170,17 +174,10 @@ func (c *Client) Record(m Method, s CallSuccess) chan struct{} {
 	return done
 }
 
-// RegisterNode
-// TODO(adam): Remove this method
-func (c *Client) RegisterNode(api.NodeInfo) {}
-
-// GetNodes
-// TODO(adam): Remove this method
-func (c *Client) GetNodes() []api.NodeInfo {
-	return nil
-}
-
 func (c *Client) Deliver(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	t := time.NewTicker(c.flushPeriod)
 	defer t.Stop()
 
@@ -229,27 +226,61 @@ func (c *Client) Flush(ctx context.Context) error {
 	}
 }
 
-func (c *Client) do(ctx context.Context, method, url string, body io.Reader) (*http.Response, error) {
+func wrapHTTPError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if e, ok := err.(*url.Error); ok {
+		if e.Timeout() || e.Temporary() {
+			return errors.Wrap(errRetryable, err.Error())
+		}
+	}
+	return err
+}
+
+func (c *Client) doRetry(ctx context.Context, method, path string, body []byte) ([]byte, error) {
+	retries := 4
+	wait := time.Second
+	for {
+		resp, err := c.do(ctx, method, path, body)
+		if err == nil {
+			return resp, nil
+		}
+		if !errors.IsAny(err, context.DeadlineExceeded, errRetryable) || retries <= 0 {
+			return nil, err
+		}
+		select {
+		case <-time.After(wait):
+			wait *= 2
+			retries--
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		log.Info(ctx, "retrying request", j.MKV{"path": path})
+	}
+}
+
+func (c *Client) do(ctx context.Context, method, path string, body []byte) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.reqTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "")
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode == http.StatusOK {
-		return resp, nil
+		return nil, wrapHTTPError(err)
 	}
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read response")
+	}
+	if resp.StatusCode == http.StatusOK {
+		return b, nil
 	}
 	s := strings.TrimSpace(string(b))
 	return nil, errors.New("failed to submit", j.MKV{"response": s})
@@ -287,7 +318,7 @@ func (c *Client) sendBatch(ctx context.Context, a aggregate) error {
 		return err
 	}
 
-	_, err = c.do(ctx, http.MethodPost, c.baseURL+"/api/submit", bytes.NewReader(b))
+	_, err = c.doRetry(ctx, http.MethodPost, "/api/submit", b)
 	if err != nil {
 		c.metrics.SubmissionErrors.Inc()
 		return err
@@ -298,18 +329,13 @@ func (c *Client) sendBatch(ctx context.Context, a aggregate) error {
 }
 
 func (c *Client) GetTraffic(ctx context.Context) ([]api.Traffic, error) {
-	httpResp, err := c.do(ctx, http.MethodGet, c.baseURL+"/api/traffic", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := io.ReadAll(httpResp.Body)
+	r, err := c.do(ctx, http.MethodGet, "/api/traffic", nil)
 	if err != nil {
 		return nil, err
 	}
 
 	var resp api.GetTrafficResponse
-	err = json.Unmarshal(b, &resp)
+	err = json.Unmarshal(r, &resp)
 	if err != nil {
 		return nil, err
 	}
