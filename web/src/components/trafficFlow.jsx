@@ -91,6 +91,12 @@ class TrafficFlow extends React.Component {
     });
   }
 
+  extraStyles = {
+    colorTraffic: {
+      auxiliary: 'rgba(190,188,124,0.3)',
+    },
+  }
+
   handlePopState () {
     const state = window.history.state || {};
     this.poppedState = true;
@@ -364,6 +370,7 @@ class TrafficFlow extends React.Component {
               match={this.state.searchTerm}
               modes={this.state.modes}
               allowDraggingOfNodes={this.state.displayOptions.allowDraggingOfNodes}
+              styles={this.extraStyles}
             />
           </div>
           {

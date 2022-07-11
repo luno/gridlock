@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"github.com/luno/gridlock/api"
+	"github.com/luno/gridlock/server/ops/config"
 	"time"
 )
 
@@ -29,27 +30,26 @@ func (g Grouper) Match(s string) bool {
 }
 
 type Group struct {
-	name string
-	typ  NodeType
+	config config.Group
 
 	nodes   map[string]Node
 	traffic NodeTraffic
 }
 
-func NewGroup(name string) Group {
+func NewGroup(c config.Group) Group {
 	return Group{
-		name:    name,
+		config:  c,
 		nodes:   make(map[string]Node),
 		traffic: NewTraffic(),
 	}
 }
 
 func (g Group) Name() string {
-	return formatGroup(g.name)
+	return formatGroup(g.config.Name)
 }
 
 func (g Group) DisplayName() string {
-	return g.name
+	return g.config.Name
 }
 
 func (g Group) Type() NodeType {
@@ -71,7 +71,8 @@ func (g Group) getNode(name string, typ api.NodeType) Node {
 	s := formatNode(name, typ)
 	n, ok := g.nodes[s]
 	if !ok {
-		n = NewLeaf(name, typ)
+		match := g.config.MatchNode(name, typ)
+		n = NewLeaf(name, typ, !match)
 		g.nodes[s] = n
 	}
 	return n
@@ -81,7 +82,7 @@ func (g Group) EnsureNode(b Builder, region, name string, typ api.NodeType) {
 	g.getNode(name, typ).EnsureNode(b, region, name, typ)
 }
 
-func (g Group) AddTraffic(b Builder,
+func (g Group) AddTraffic(_ Builder,
 	t time.Time, s RateStats,
 	_, srcName string, srcType api.NodeType,
 	_, tgtName string, tgtType api.NodeType,
@@ -94,6 +95,10 @@ func (g Group) AddTraffic(b Builder,
 
 func (g Group) GetTraffic() []Arc {
 	return g.traffic.Flatten()
+}
+
+func (g Group) IsAuxiliary() bool {
+	return false
 }
 
 var _ Node = (*Group)(nil)

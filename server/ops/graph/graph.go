@@ -28,6 +28,10 @@ type Node interface {
 	Name() string
 	DisplayName() string
 	Type() NodeType
+	// IsAuxiliary indicates that this node has been included
+	// because of traffic data rather than by definition
+	// It used in groups to indicate nodes which are part of the group.
+	IsAuxiliary() bool
 
 	IsLeaf() bool
 	GetNodes() map[string]Node

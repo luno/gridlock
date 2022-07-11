@@ -13,6 +13,9 @@ func compileNode(node graph.Node, tInc graph.TimeInclusionFunc) vizceral.Node {
 		Name:        node.Name(),
 		DisplayName: node.DisplayName(),
 	}
+	if node.IsAuxiliary() {
+		ret.Class = vizceral.ClassAuxiliary
+	}
 
 	switch node.Type() {
 	case graph.NodeGroup:

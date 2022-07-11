@@ -11,22 +11,22 @@ type Region struct {
 }
 
 func NewRegion(name string) Region {
-	return Region{Group: NewGroup(name)}
+	return Region{Group: NewGroup(config.Group{Name: name})}
 }
 
 func (r Region) Name() string {
-	return r.name
+	return r.Group.config.Name
 }
 
 func (r Region) Type() NodeType {
 	return NodeRegion
 }
 
-func (r Region) getGroup(name string) Node {
-	s := formatGroup(name)
+func (r Region) getGroup(group config.Group) Node {
+	s := formatGroup(group.Name)
 	grp, ok := r.nodes[s]
 	if !ok {
-		grp = NewGroup(name)
+		grp = NewGroup(group)
 		r.nodes[s] = grp
 	}
 	return grp
@@ -38,14 +38,14 @@ func (r Region) getNode(name string, typ api.NodeType, groups []config.Group) No
 	}
 	for _, g := range groups {
 		if g.MatchNode(name, typ) {
-			return r.getGroup(g.Name)
+			return r.getGroup(g)
 		}
 	}
-	return r.getGroup(name)
+	return r.getGroup(config.NodeMatcher(name, typ))
 }
 
 func (r Region) EnsureNode(b Builder, region, name string, typ api.NodeType) {
-	if region != r.name {
+	if region != r.Name() {
 		return
 	}
 	n := r.getNode(name, typ, b.Config.Groups)

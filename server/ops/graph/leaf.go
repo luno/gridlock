@@ -8,12 +8,14 @@ import (
 type Leaf struct {
 	name string
 	typ  api.NodeType
+	aux  bool
 }
 
-func NewLeaf(name string, typ api.NodeType) Leaf {
+func NewLeaf(name string, typ api.NodeType, aux bool) Leaf {
 	return Leaf{
 		name: name,
 		typ:  typ,
+		aux:  aux,
 	}
 }
 
@@ -59,6 +61,10 @@ func (l Leaf) AddTraffic(Builder,
 
 func (l Leaf) GetTraffic() []Arc {
 	return nil
+}
+
+func (l Leaf) IsAuxiliary() bool {
+	return l.aux
 }
 
 var _ Node = (*Leaf)(nil)

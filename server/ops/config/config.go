@@ -19,6 +19,15 @@ type Group struct {
 	Selectors []Selector `yaml:"selectors"`
 }
 
+func NodeMatcher(name string, typ api.NodeType) Group {
+	return Group{
+		Name: name,
+		Selectors: []Selector{
+			{Name: name, Type: string(typ)},
+		},
+	}
+}
+
 func (g Group) MatchNode(name string, typ api.NodeType) bool {
 	for _, s := range g.Selectors {
 		if s.MatchNode(name, typ) {

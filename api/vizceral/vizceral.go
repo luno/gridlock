@@ -6,6 +6,9 @@ const (
 	ClassNormal  NodeClass = "normal"
 	ClassWarning NodeClass = "warning"
 	ClassDanger  NodeClass = "danger"
+
+	// ClassAuxiliary is a custom class
+	ClassAuxiliary NodeClass = "auxiliary"
 )
 
 type NodeRenderer string

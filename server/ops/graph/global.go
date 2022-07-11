@@ -11,6 +11,10 @@ type Internet struct {
 	Leaf
 }
 
+func (i Internet) IsAuxiliary() bool {
+	return true
+}
+
 func (i Internet) Name() string {
 	return InternetLabel
 }
@@ -35,6 +39,10 @@ func getInternetNode(nodes map[string]Node) Node {
 type Global struct {
 	nodes   map[string]Node
 	traffic NodeTraffic
+}
+
+func (g Global) IsAuxiliary() bool {
+	return false
 }
 
 func NewGlobal() Global {
