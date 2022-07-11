@@ -93,7 +93,7 @@ class TrafficFlow extends React.Component {
 
   extraStyles = {
     colorTraffic: {
-      auxiliary: 'rgba(190,188,124,0.3)',
+      auxiliary: 'rgba(255,251,172,0.5)',
     },
   }
 

@@ -12,7 +12,7 @@ type Internet struct {
 }
 
 func (i Internet) IsAuxiliary() bool {
-	return true
+	return false
 }
 
 func (i Internet) Name() string {
