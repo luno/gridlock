@@ -11,6 +11,7 @@ func TestDecodeConfig(t *testing.T) {
 		name      string
 		yaml      string
 		expConfig Config
+		expError  bool
 	}{
 		{name: "empty"},
 		{name: "single group",
@@ -27,12 +28,19 @@ groups:
 				}},
 			}},
 		},
+		{name: "unknown field",
+			yaml: `
+notgroups:
+  - name: "exchange"
+`,
+			expError: true,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			c, err := decodeConfig([]byte(tc.yaml))
-			require.NoError(t, err)
+			require.Equal(t, tc.expError, err != nil)
 			assert.Equal(t, tc.expConfig, c)
 		})
 	}

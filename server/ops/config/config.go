@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"flag"
 	"github.com/luno/gridlock/api"
 	"gopkg.in/yaml.v3"
@@ -38,8 +39,9 @@ func (g Group) MatchNode(name string, typ api.NodeType) bool {
 }
 
 type Selector struct {
-	Name string `yaml:"name"`
-	Type string `yaml:"type"`
+	Name   string `yaml:"name"`
+	Prefix string `yaml:"prefix"`
+	Type   string `yaml:"type"`
 }
 
 func matchWildcard(s string, match string) bool {
@@ -63,6 +65,9 @@ func matchWildcard(s string, match string) bool {
 }
 
 func (s Selector) MatchNode(name string, typ api.NodeType) bool {
+	if !strings.HasPrefix(name, s.Prefix) {
+		return false
+	}
 	if !matchWildcard(name, s.Name) {
 		return false
 	}
@@ -94,6 +99,8 @@ func GetConfig() Config {
 
 func decodeConfig(content []byte) (Config, error) {
 	var c Config
-	err := yaml.Unmarshal(content, &c)
+	d := yaml.NewDecoder(bytes.NewReader(content))
+	d.KnownFields(true)
+	err := d.Decode(&c)
 	return c, err
 }

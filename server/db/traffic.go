@@ -18,6 +18,7 @@ const (
 	Bad     = "bad"
 )
 
+// TrafficKey is stored as a '.' separated key with an integer count value
 type TrafficKey struct {
 	FromID    string
 	ToID      string

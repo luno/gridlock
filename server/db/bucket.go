@@ -13,6 +13,8 @@ const (
 	DefaultNodeTTL = time.Hour
 )
 
+// Bucket is stored as a Unix timestamp key with a redis set of values
+// These values are serialised TrafficKey keys
 type Bucket struct {
 	time.Time
 }
