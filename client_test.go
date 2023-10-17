@@ -2,13 +2,14 @@ package gridlock
 
 import (
 	"context"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/handlers"
 	"github.com/luno/gridlock/server/ops"
 	"github.com/luno/jettison/jtest"
 	"github.com/stretchr/testify/assert"
-	"net/http/httptest"
-	"testing"
 )
 
 type state struct {

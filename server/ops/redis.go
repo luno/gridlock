@@ -3,16 +3,19 @@ package ops
 import (
 	"context"
 	"flag"
+	"time"
+
 	"github.com/gomodule/redigo/redis"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
 	"github.com/luno/jettison/log"
-	"time"
 )
 
-var redisAddr = flag.String("redis", "redis://127.0.0.1:6379", "Address to connect to the redis server")
-var redisUser = flag.String("redis_user", "", "User for authentication to the redis server, requires password")
-var redisPassword = flag.String("redis_password", "", "Password for authentication to the redis server")
+var (
+	redisAddr     = flag.String("redis", "redis://127.0.0.1:6379", "Address to connect to the redis server")
+	redisUser     = flag.String("redis_user", "", "User for authentication to the redis server, requires password")
+	redisPassword = flag.String("redis_password", "", "Password for authentication to the redis server")
+)
 
 func NewRedisPool(ctx context.Context) (*redis.Pool, error) {
 	if *redisAddr == "" {

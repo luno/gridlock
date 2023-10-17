@@ -2,9 +2,10 @@ package gridlock
 
 import (
 	"context"
+	"strings"
+
 	"github.com/luno/gridlock/api"
 	"google.golang.org/grpc"
-	"strings"
 )
 
 func GRPCClientReporter(c Client) grpc.UnaryClientInterceptor {

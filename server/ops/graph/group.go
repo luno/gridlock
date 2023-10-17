@@ -2,9 +2,10 @@ package graph
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/ops/config"
-	"time"
 )
 
 func formatNode(name string, typ api.NodeType) string {

@@ -2,12 +2,13 @@ package ops
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/jtest"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestLoaderMemoryCleanup(t *testing.T) {

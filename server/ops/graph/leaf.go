@@ -1,8 +1,9 @@
 package graph
 
 import (
-	"github.com/luno/gridlock/api"
 	"time"
+
+	"github.com/luno/gridlock/api"
 )
 
 type Leaf struct {

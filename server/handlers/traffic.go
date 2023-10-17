@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/ops"
 	"github.com/luno/jettison/log"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 func GetTrafficHandler(d Deps) httprouter.Handle {

@@ -2,9 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	jlog "github.com/luno/jettison/log"
 	"log"
 	"os"
+
+	jlog "github.com/luno/jettison/log"
 )
 
 type JSONLogger struct {

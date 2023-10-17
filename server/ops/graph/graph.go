@@ -1,9 +1,10 @@
 package graph
 
 import (
+	"time"
+
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/ops/config"
-	"time"
 )
 
 type NodeType int

@@ -1,9 +1,10 @@
 package config
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestDecodeConfig(t *testing.T) {
@@ -14,7 +15,8 @@ func TestDecodeConfig(t *testing.T) {
 		expError  bool
 	}{
 		{name: "empty"},
-		{name: "single group",
+		{
+			name: "single group",
 			yaml: `
 groups:
   - name: "exchange"
@@ -28,7 +30,8 @@ groups:
 				}},
 			}},
 		},
-		{name: "unknown field",
+		{
+			name: "unknown field",
 			yaml: `
 notgroups:
   - name: "exchange"

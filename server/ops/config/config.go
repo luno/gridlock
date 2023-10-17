@@ -3,10 +3,11 @@ package config
 import (
 	"bytes"
 	"flag"
-	"github.com/luno/gridlock/api"
-	"gopkg.in/yaml.v3"
 	"os"
 	"strings"
+
+	"github.com/luno/gridlock/api"
+	"gopkg.in/yaml.v3"
 )
 
 var configFile = flag.String("config", "", "path to a config yaml")

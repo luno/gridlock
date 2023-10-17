@@ -1,12 +1,13 @@
 package graph
 
 import (
-	"github.com/luno/gridlock/api"
-	"github.com/luno/gridlock/server/ops/config"
-	"github.com/stretchr/testify/assert"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/luno/gridlock/api"
+	"github.com/luno/gridlock/server/ops/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBuildGraph(t *testing.T) {
@@ -47,7 +48,8 @@ func TestBuildGraph(t *testing.T) {
 					},
 				},
 			},
-		}}
+		},
+	}
 	root := ConstructGraph(b, ml)
 
 	expGraph := map[string][]string{
