@@ -3,10 +3,11 @@ package handlers
 import (
 	"context"
 	"flag"
-	"github.com/julienschmidt/httprouter"
 	"io/fs"
 	"net/http"
 	"os"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 var webBuild = flag.String("web_build", "", "`build` folder for web app")

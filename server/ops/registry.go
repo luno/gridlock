@@ -2,6 +2,7 @@ package ops
 
 import (
 	"context"
+
 	"github.com/gomodule/redigo/redis"
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/db"

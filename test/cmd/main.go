@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/luno/gridlock"
-	"github.com/luno/gridlock/api"
-	"github.com/luno/jettison/errors"
-	"github.com/luno/jettison/log"
 	"math/rand"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/luno/gridlock"
+	"github.com/luno/gridlock/api"
+	"github.com/luno/jettison/errors"
+	"github.com/luno/jettison/log"
 )
 
 func deliverForever(ctx context.Context, c *gridlock.Client) {

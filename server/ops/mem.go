@@ -2,11 +2,12 @@ package ops
 
 import (
 	"context"
+	"sort"
+	"sync"
+
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/errors"
-	"sort"
-	"sync"
 )
 
 type MemDB struct {
@@ -106,5 +107,7 @@ func (m *MemDB) GetNodes(context.Context) ([]api.NodeInfo, error) {
 	return ret, nil
 }
 
-var _ TrafficDB = (*MemDB)(nil)
-var _ NodeDB = (*MemDB)(nil)
+var (
+	_ TrafficDB = (*MemDB)(nil)
+	_ NodeDB    = (*MemDB)(nil)
+)

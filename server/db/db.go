@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"fmt"
+
 	"github.com/gomodule/redigo/redis"
 	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"

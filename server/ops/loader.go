@@ -2,13 +2,14 @@ package ops
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
 	"github.com/luno/jettison/log"
-	"sync"
-	"time"
 )
 
 type TrafficStats interface {

@@ -2,12 +2,13 @@ package db
 
 import (
 	"context"
-	"github.com/gomodule/redigo/redis"
-	"github.com/luno/jettison/errors"
-	"github.com/luno/jettison/j"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gomodule/redigo/redis"
+	"github.com/luno/jettison/errors"
+	"github.com/luno/jettison/j"
 )
 
 type Level string

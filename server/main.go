@@ -3,13 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/julienschmidt/httprouter"
-	"github.com/luno/gridlock/server/handlers"
-	"github.com/luno/gridlock/server/ops"
-	"github.com/luno/gridlock/server/ops/config"
-	"github.com/luno/jettison/errors"
-	"github.com/luno/jettison/j"
-	jlog "github.com/luno/jettison/log"
 	"net"
 	"net/http"
 	"os"
@@ -17,6 +10,14 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/julienschmidt/httprouter"
+	"github.com/luno/gridlock/server/handlers"
+	"github.com/luno/gridlock/server/ops"
+	"github.com/luno/gridlock/server/ops/config"
+	"github.com/luno/jettison/errors"
+	"github.com/luno/jettison/j"
+	jlog "github.com/luno/jettison/log"
 )
 
 type state struct {

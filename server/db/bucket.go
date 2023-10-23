@@ -2,10 +2,11 @@ package db
 
 import (
 	"context"
+	"time"
+
 	"github.com/gomodule/redigo/redis"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/log"
-	"time"
 )
 
 const (

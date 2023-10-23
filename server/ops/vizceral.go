@@ -1,11 +1,12 @@
 package ops
 
 import (
+	"time"
+
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/api/vizceral"
 	"github.com/luno/gridlock/server/ops/config"
 	"github.com/luno/gridlock/server/ops/graph"
-	"time"
 )
 
 func compileNode(node graph.Node, tInc graph.TimeInclusionFunc) vizceral.Node {

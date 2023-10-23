@@ -1,10 +1,11 @@
 package ops
 
 import (
-	"github.com/luno/gridlock/api"
-	"github.com/luno/gridlock/server/db"
 	"sort"
 	"time"
+
+	"github.com/luno/gridlock/api"
+	"github.com/luno/gridlock/server/db"
 )
 
 func SummariseTraffic(ml []api.Metrics, ts time.Time) []api.Traffic {

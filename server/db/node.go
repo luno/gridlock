@@ -3,11 +3,12 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/gomodule/redigo/redis"
 	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
-	"time"
 )
 
 const nodeTTL = time.Hour

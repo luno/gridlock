@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/log"
-	"net/http"
 )
 
 func GetNodesHandler(d Deps) httprouter.Handle {
@@ -26,5 +27,4 @@ func GetNodesHandler(d Deps) httprouter.Handle {
 			log.Error(ctx, err)
 		}
 	}
-
 }

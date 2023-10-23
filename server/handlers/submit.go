@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/log"
-	"io"
-	"net/http"
 )
 
 func SubmitMetricsHandler(d Deps) httprouter.Handle {

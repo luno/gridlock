@@ -3,11 +3,12 @@ package handlers
 import (
 	_ "embed"
 	"encoding/json"
+	"net/http"
+	"time"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/luno/gridlock/server/ops"
 	"github.com/luno/jettison/log"
-	"net/http"
-	"time"
 )
 
 func VizceralTrafficHandler(d Deps) httprouter.Handle {

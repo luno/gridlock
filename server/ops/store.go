@@ -2,10 +2,11 @@ package ops
 
 import (
 	"context"
+	"time"
+
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/db"
 	"github.com/luno/jettison/errors"
-	"time"
 )
 
 func storeMetrics(ctx context.Context, trafficDB TrafficDB, nodeDB NodeDB, metrics []api.Metrics) error {
