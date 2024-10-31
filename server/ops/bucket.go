@@ -2,7 +2,6 @@ package ops
 
 import (
 	"context"
-
 	"github.com/luno/gridlock/server/db"
 	"github.com/luno/gridlock/server/ops/graph"
 )

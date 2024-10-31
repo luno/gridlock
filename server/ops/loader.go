@@ -105,7 +105,7 @@ func loadTraffic(ctx context.Context, trafficDB TrafficDB, buckets map[db.Bucket
 	last := db.BucketFromTime(now)
 	var count int
 	for _, b := range db.GetBucketsBetween(last.Add(-time.Hour), last.Time) {
-		if _, has := buckets[b]; has {
+		if _, has := buckets[b]; has && !b.Equal(last.Time) {
 			continue
 		}
 		bMetrics, err := loadBucket(ctx, trafficDB, b)

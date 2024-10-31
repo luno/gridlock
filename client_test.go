@@ -5,11 +5,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/luno/jettison/jtest"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/handlers"
 	"github.com/luno/gridlock/server/ops"
-	"github.com/luno/jettison/jtest"
-	"github.com/stretchr/testify/assert"
 )
 
 type state struct {
@@ -65,8 +66,13 @@ func TestClientSubmitsMetrics(t *testing.T) {
 	traffic, err := c.GetTraffic(ctx)
 	jtest.RequireNil(t, err)
 
+	for i := range traffic {
+		assert.NotZero(t, traffic[i].Ts)
+		traffic[i].Ts = 0
+	}
+
 	assert.Equal(t, []api.Traffic{
-		{From: "server1", To: "server2", CountGood: 2, CountBad: 1},
-		{From: "server2", To: "server1", CountWarning: 1},
+		{Duration: 60, From: "server1", To: "server2", CountGood: 2, CountBad: 1},
+		{Duration: 60, From: "server2", To: "server1", CountWarning: 1},
 	}, traffic)
 }

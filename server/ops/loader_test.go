@@ -44,10 +44,10 @@ func TestLoaderMemoryCleanup(t *testing.T) {
 
 	err = loadTraffic(ctx, mdb, buckets, ts)
 	jtest.RequireNil(t, err)
-	assert.Len(t, buckets, 60)
+	assert.Len(t, buckets, 61)
 
 	ts = ts.Add(4 * time.Hour)
 	err = loadTraffic(ctx, mdb, buckets, ts)
 	jtest.RequireNil(t, err)
-	assert.Len(t, buckets, 60)
+	assert.Len(t, buckets, 61)
 }

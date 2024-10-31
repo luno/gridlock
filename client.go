@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
 	"github.com/luno/jettison/log"
+
+	"github.com/luno/gridlock/api"
 )
 
 type CallAggregate [3]int64
@@ -231,7 +232,8 @@ func wrapHTTPError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if e, ok := err.(*url.Error); ok {
+	var e *url.Error
+	if errors.As(err, &e) {
 		if e.Timeout() || e.Temporary() {
 			return errors.Wrap(errRetryable, err.Error())
 		}
@@ -319,7 +321,7 @@ func (c *Client) sendBatch(ctx context.Context, a aggregate) error {
 		return err
 	}
 
-	_, err = c.doRetry(ctx, http.MethodPost, "/api/submit", b)
+	_, err = c.doRetry(ctx, http.MethodPost, "/gridlock/api/submit", b)
 	if err != nil {
 		c.metrics.SubmissionErrors.Inc()
 		return err
@@ -330,7 +332,7 @@ func (c *Client) sendBatch(ctx context.Context, a aggregate) error {
 }
 
 func (c *Client) GetTraffic(ctx context.Context) ([]api.Traffic, error) {
-	r, err := c.do(ctx, http.MethodGet, "/api/traffic", nil)
+	r, err := c.do(ctx, http.MethodGet, "/gridlock/api/traffic", nil)
 	if err != nil {
 		return nil, err
 	}
