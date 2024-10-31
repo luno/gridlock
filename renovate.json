@@ -1,0 +1,6 @@
+{
+  "extends": ["github>luno/.github:renovate-default-config.json5"],
+  "additionalReviewers": [
+    "adamhicks"
+  ]
+}
