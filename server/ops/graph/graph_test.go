@@ -70,17 +70,6 @@ func TestBuildGraph(t *testing.T) {
 	ts := time.Unix(100, 0).UTC()
 
 	expTraffic := map[string][]Arc{
-		"console.group":        {Arc{From: "console.service", To: "exchange-api.service", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 100, Warning: 10, Bad: 1, Duration: 60000000000}}}}},
-		"console.service":      []Arc(nil),
-		"edge":                 {Arc{From: "internet", To: "eu-west-1", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 1, Warning: 2, Bad: 0, Duration: 60000000000}}}}},
-		"eu-west-1":            {Arc{From: "internet", To: "exchange.group", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 1, Warning: 2, Bad: 0, Duration: 60000000000}}}}, Arc{From: "console.group", To: "exchange.group", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 100, Warning: 10, Bad: 1, Duration: 60000000000}}}}},
-		"exchange-api.service": []Arc(nil),
-		"exchange.database":    []Arc(nil),
-		"exchange.group":       {{From: "console.service", To: "exchange-api.service", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 100, Warning: 10, Bad: 1, Duration: 60000000000}}}}, {From: "exchange-api.service", To: "exchange.database", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 12, Warning: 0, Bad: 0, Duration: 60000000000}}}}, {From: "internet", To: "exchange-api.service", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 1, Warning: 2, Bad: 0, Duration: 60000000000}}}}},
-		"internet":             []Arc(nil),
-	}
-
-	expTraffic = map[string][]Arc{
 		"edge": {{
 			From: "internet", To: "eu-west-1",
 			Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{
