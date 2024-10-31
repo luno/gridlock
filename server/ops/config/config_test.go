@@ -1,10 +1,12 @@
 package config
 
 import (
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestDecodeConfig(t *testing.T) {
@@ -12,9 +14,12 @@ func TestDecodeConfig(t *testing.T) {
 		name      string
 		yaml      string
 		expConfig Config
-		expError  bool
+		expError  error
 	}{
-		{name: "empty"},
+		{
+			name:     "empty",
+			expError: io.EOF,
+		},
 		{
 			name: "single group",
 			yaml: `
@@ -36,14 +41,13 @@ groups:
 notgroups:
   - name: "exchange"
 `,
-			expError: true,
+			expError: &yaml.TypeError{Errors: []string{"line 2: field notgroups not found in type config.Config"}},
 		},
 	}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			c, err := decodeConfig([]byte(tc.yaml))
-			require.Equal(t, tc.expError, err != nil)
+			require.Equal(t, tc.expError, err)
 			assert.Equal(t, tc.expConfig, c)
 		})
 	}

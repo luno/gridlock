@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/luno/gridlock/api"
 	"github.com/luno/jettison/errors"
 	"github.com/luno/jettison/j"
 	"github.com/luno/jettison/log"
+
+	"github.com/luno/gridlock/api"
 )
 
 type CallAggregate [3]int64
@@ -231,7 +232,8 @@ func wrapHTTPError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if e, ok := err.(*url.Error); ok {
+	var e *url.Error
+	if errors.As(err, &e) {
 		if e.Timeout() || e.Temporary() {
 			return errors.Wrap(errRetryable, err.Error())
 		}

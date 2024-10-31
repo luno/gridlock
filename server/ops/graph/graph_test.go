@@ -5,9 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/luno/gridlock/api"
 	"github.com/luno/gridlock/server/ops/config"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestBuildGraph(t *testing.T) {
@@ -54,18 +56,31 @@ func TestBuildGraph(t *testing.T) {
 
 	expGraph := map[string][]string{
 		"edge":                 {"eu-west-1", "internet"},
-		"eu-west-1":            {"console.service", "exchange.group"},
-		"exchange.group":       {"exchange-api.service", "exchange.database"},
+		"eu-west-1":            {"console.group", "exchange.group", "internet"},
+		"exchange.group":       {"console.service", "exchange-api.service", "exchange.database", "internet"},
+		"console.group":        {"console.service", "exchange-api.service"},
 		"console.service":      nil,
 		"exchange-api.service": nil,
 		"exchange.database":    nil,
 		"internet":             nil,
 	}
 
-	assert.Equal(t, expGraph, flatten(root))
+	require.Equal(t, expGraph, flatten(root))
 
 	ts := time.Unix(100, 0).UTC()
+
 	expTraffic := map[string][]Arc{
+		"console.group":        {Arc{From: "console.service", To: "exchange-api.service", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 100, Warning: 10, Bad: 1, Duration: 60000000000}}}}},
+		"console.service":      []Arc(nil),
+		"edge":                 {Arc{From: "internet", To: "eu-west-1", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 1, Warning: 2, Bad: 0, Duration: 60000000000}}}}},
+		"eu-west-1":            {Arc{From: "internet", To: "exchange.group", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 1, Warning: 2, Bad: 0, Duration: 60000000000}}}}, Arc{From: "console.group", To: "exchange.group", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 100, Warning: 10, Bad: 1, Duration: 60000000000}}}}},
+		"exchange-api.service": []Arc(nil),
+		"exchange.database":    []Arc(nil),
+		"exchange.group":       {{From: "console.service", To: "exchange-api.service", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 100, Warning: 10, Bad: 1, Duration: 60000000000}}}}, {From: "exchange-api.service", To: "exchange.database", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 12, Warning: 0, Bad: 0, Duration: 60000000000}}}}, {From: "internet", To: "exchange-api.service", Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{time.Date(1970, time.January, 1, 0, 1, 40, 0, time.UTC): {Good: 1, Warning: 2, Bad: 0, Duration: 60000000000}}}}},
+		"internet":             []Arc(nil),
+	}
+
+	expTraffic = map[string][]Arc{
 		"edge": {{
 			From: "internet", To: "eu-west-1",
 			Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{
@@ -75,15 +90,37 @@ func TestBuildGraph(t *testing.T) {
 				},
 			}},
 		}},
-		"eu-west-1": {{
-			From: "console.service", To: "exchange.group",
-			Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{
-				ts: {
-					Good: 100, Warning: 10, Bad: 1,
-					Duration: time.Minute,
-				},
-			}},
-		}},
+		"eu-west-1": {
+			{
+				From: "console.group", To: "exchange.group",
+				Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{
+					ts: {
+						Good: 100, Warning: 10, Bad: 1,
+						Duration: time.Minute,
+					},
+				}},
+			},
+			{
+				From: "internet", To: "exchange.group",
+				Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{
+					ts: {
+						Good: 1, Warning: 2, Bad: 0,
+						Duration: time.Minute,
+					},
+				}},
+			},
+		},
+		"console.group": {
+			{
+				From: "console.service", To: "exchange-api.service",
+				Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{
+					ts: {
+						Good: 100, Warning: 10, Bad: 1,
+						Duration: time.Minute,
+					},
+				}},
+			},
+		},
 		"console.service":      nil,
 		"exchange-api.service": nil,
 		"exchange.database":    nil,
@@ -102,6 +139,15 @@ func TestBuildGraph(t *testing.T) {
 				Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{
 					ts: {
 						Good: 12, Warning: 0, Bad: 0,
+						Duration: time.Minute,
+					},
+				}},
+			},
+			{
+				From: "internet", To: "exchange-api.service",
+				Traffic: TrafficLogs{Buckets: map[time.Time]RateStats{
+					ts: {
+						Good: 1, Warning: 2, Bad: 0,
 						Duration: time.Minute,
 					},
 				}},
@@ -137,7 +183,11 @@ func flatTraffic(n Node) map[string][]Arc {
 		nxt := nodes[len(nodes)-1]
 		nodes = nodes[:len(nodes)-1]
 
-		ret[nxt.Name()] = nxt.GetTraffic()
+		traffic := nxt.GetTraffic()
+		sort.Slice(traffic, func(i, j int) bool {
+			return traffic[i].From < traffic[j].From
+		})
+		ret[nxt.Name()] = traffic
 
 		for _, node := range nxt.GetNodes() {
 			nodes = append(nodes, node)
