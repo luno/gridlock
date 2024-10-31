@@ -22,7 +22,6 @@ func (s state) TrafficStats() ops.TrafficStats {
 }
 
 func TestClientSubmitsMetrics(t *testing.T) {
-	t.Skip(`skip until we fix "Post /gridlock: stopped after 10 redirects`)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -67,8 +66,13 @@ func TestClientSubmitsMetrics(t *testing.T) {
 	traffic, err := c.GetTraffic(ctx)
 	jtest.RequireNil(t, err)
 
+	for i := range traffic {
+		assert.NotZero(t, traffic[i].Ts)
+		traffic[i].Ts = 0
+	}
+
 	assert.Equal(t, []api.Traffic{
-		{From: "server1", To: "server2", CountGood: 2, CountBad: 1},
-		{From: "server2", To: "server1", CountWarning: 1},
+		{Duration: 60, From: "server1", To: "server2", CountGood: 2, CountBad: 1},
+		{Duration: 60, From: "server2", To: "server1", CountWarning: 1},
 	}, traffic)
 }

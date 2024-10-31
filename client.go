@@ -321,7 +321,7 @@ func (c *Client) sendBatch(ctx context.Context, a aggregate) error {
 		return err
 	}
 
-	_, err = c.doRetry(ctx, http.MethodPost, "/api/submit", b)
+	_, err = c.doRetry(ctx, http.MethodPost, "/gridlock/api/submit", b)
 	if err != nil {
 		c.metrics.SubmissionErrors.Inc()
 		return err
@@ -332,7 +332,7 @@ func (c *Client) sendBatch(ctx context.Context, a aggregate) error {
 }
 
 func (c *Client) GetTraffic(ctx context.Context) ([]api.Traffic, error) {
-	r, err := c.do(ctx, http.MethodGet, "/api/traffic", nil)
+	r, err := c.do(ctx, http.MethodGet, "/gridlock/api/traffic", nil)
 	if err != nil {
 		return nil, err
 	}

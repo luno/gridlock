@@ -34,7 +34,7 @@ func BucketFromTime(t time.Time) Bucket {
 
 func GetBucketsBetween(from, to time.Time) []Bucket {
 	var ret []Bucket
-	for b := BucketFromTime(from); b.Before(to); b = b.Next() {
+	for b := BucketFromTime(from); !b.After(to); b = b.Next() {
 		ret = append(ret, b)
 	}
 	return ret
