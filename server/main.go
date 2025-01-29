@@ -54,7 +54,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		runWebServer(ctx, handlers.CreateRouter(ctx, s), 80)
+		runWebServer(ctx, handlers.CreateRouter(ctx, s), 8008)
 	}()
 
 	wg.Add(1)
