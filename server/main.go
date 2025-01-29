@@ -30,7 +30,13 @@ func (s state) TrafficStats() ops.TrafficStats {
 
 func main() {
 	InitLogging()
+
+	var port int
+	var debugPort int
+	flag.IntVar(&port, "port", 80, "Port for the main web server")
+	flag.IntVar(&debugPort, "debug-port", 8080, "Port for the debug web server")
 	flag.Parse()
+
 	config.MustLoadConfig()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -54,13 +60,13 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		runWebServer(ctx, handlers.CreateRouter(ctx, s), 8008)
+		runWebServer(ctx, handlers.CreateRouter(ctx, s), port)
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		runWebServer(ctx, handlers.CreateDebugRouter(), 8080)
+		runWebServer(ctx, handlers.CreateDebugRouter(), debugPort)
 	}()
 
 	wg.Wait()
