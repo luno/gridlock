@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine as server
+FROM golang:1.24-alpine as server
 WORKDIR /
 COPY ./ ./
 RUN mkdir -p build
