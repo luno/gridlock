@@ -22,6 +22,7 @@ jobs:
         run: go test -coverpkg=./... -coverprofile=coverage.out -json ./... > sonar-report.json
 
       - name: Upload coverage reports to Sonar
-        uses: sonarsource/sonarqube-scan-action@v5.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        if: github.event.pull_request.head.repo.full_name == github.repository || env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@master
