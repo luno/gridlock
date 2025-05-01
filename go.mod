@@ -7,9 +7,9 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/luno/jettison v0.0.0-20220222115749-b4f292a39192
 	github.com/prometheus/client_golang v1.11.1
-	github.com/stretchr/testify v1.7.1
+	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.56.3
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
