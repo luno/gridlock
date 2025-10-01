@@ -77,7 +77,7 @@ func runWebServer(ctx context.Context, router *httprouter.Router, port int) {
 		BaseContext: func(listener net.Listener) context.Context { return ctx },
 		Handler:     router,
 		Addr:        ":" + strconv.Itoa(port),
-		ReadTimeout: 5 * time.Second,
+		ReadTimeout: 10 * time.Second,
 	}
 	go shutdownOnCancel(ctx, srv)
 	jlog.Info(ctx, "server listening", j.KV("port", port))
