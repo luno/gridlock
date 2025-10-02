@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"net/http/pprof"
 	"strings"
 	"time"
 
@@ -73,14 +72,5 @@ func CreateDebugRouter() *httprouter.Router {
 		_, _ = w.Write([]byte("OK"))
 	})
 
-	r.HandlerFunc("GET", "/debug/pprof/profile", pprof.Profile)
-	r.HandlerFunc("GET", "/debug/pprof/symbol", pprof.Symbol)
-	r.HandlerFunc("GET", "/debug/pprof/cmdline", pprof.Cmdline)
-	r.HandlerFunc("GET", "/debug/pprof/", pprof.Index)
-	r.HandlerFunc("GET", "/debug/pprof/allocs", pprof.Index)
-	r.HandlerFunc("GET", "/debug/pprof/block", pprof.Index)
-	r.HandlerFunc("GET", "/debug/pprof/goroutine", pprof.Index)
-	r.HandlerFunc("GET", "/debug/pprof/heap", pprof.Index)
-	r.HandlerFunc("GET", "/debug/pprof/threadcreate", pprof.Index)
 	return r
 }
