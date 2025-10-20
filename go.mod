@@ -8,7 +8,7 @@ require (
 	github.com/luno/jettison v0.0.0-20220222115749-b4f292a39192
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
-	google.golang.org/grpc v1.75.1
+	google.golang.org/grpc v1.76.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
