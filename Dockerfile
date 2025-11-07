@@ -11,4 +11,8 @@ RUN npm install && npm run build
 FROM alpine:3.22.2@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412
 COPY --from=server /build/server ./
 COPY --from=webapp /build/ webapp/
+RUN apk add --no-cache shadow && \
+    useradd -U -u 1000 appuser && \
+    chown -R 1000:1000 .
+USER 1000
 ENTRYPOINT ["./server", "--web_build=./webapp"]
