@@ -1,6 +1,8 @@
 module github.com/luno/gridlock
 
-go 1.24.3
+go 1.25.0
+
+toolchain go1.25.3
 
 require (
 	github.com/gomodule/redigo v1.9.3
