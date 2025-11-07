@@ -1,5 +1,15 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import DOMPurify from 'dompurify';
+
+function sanitizeHtml(html) {
+  return html
+    ? DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: ['span', 'p'],
+        ALLOWED_ATTR: ['class'],
+      })
+    : '';
+}
 
 class Stepper extends React.Component {
   constructor (props) {
@@ -23,7 +33,7 @@ class Stepper extends React.Component {
             let stepName = step.name ? step.name.trim() : undefined;
             stepName = stepName || '&nbsp;';
             return (
-              <li key={index} className={className} data-step=" " onClick={() => this.stepChanged(index)} dangerouslySetInnerHTML={{ __html: stepName }}>
+              <li key={index} className={className} data-step=" " onClick={() => this.stepChanged(index)} dangerouslySetInnerHTML={{ __html: sanitizeHtml(stepName) }}>
               </li>
             );
           })
